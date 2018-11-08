@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:async';
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,23 @@ import 'package:zariz_app/utils/bubble_indication_painter.dart';
 import 'package:zariz_app/utils/Services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'package:flutter/cupertino.dart';
+
+import 'package:zariz_app/ui/page_carousel.dart';
+
+class Details{
+    String _firstName;
+    String _lastName;
+    double _minWage;
+    String _occupationFieldListString;
+    int userID;
+    String photoAGCSPath;
+    double _radius;
+    double _lat;
+    double _lng;
+    int _id;
+  }
 
 class Choice {
   const Choice({this.title, this.icon});
@@ -64,6 +82,9 @@ class _ProfilePageState extends State<ProfilePage>
   bool _bSignUpEnabled = true;
   Choice _selectedChoice = choices[0];
 
+  Details _details;
+  List<String> _litems = ["גינון", "הפקה", "חינוך", "כלים כבדים","sdsd","dsdsd"];
+
   void _select(Choice choice) {
     // Causes the app to rebuild with the new _selectedChoice.
     setState(() {
@@ -82,120 +103,191 @@ class _ProfilePageState extends State<ProfilePage>
         ]);
     });
   }
-
+  getResolution(Image image) {
+    Completer<ImageInfo> completer = new Completer<ImageInfo>();
+    image.image
+      .resolve(new ImageConfiguration())
+      .addListener((ImageInfo info, bool _) => completer.complete(info));
+    return completer.future;
+  }
   void imagePick(ImageSource _source) {
     ImagePicker.pickImage(source: _source).then((img){
-        var image = Image.file(img , fit: BoxFit.scaleDown, width: 250.0, height: 191.0);
-    
-        setState(() {
-            _image = image;
+        var res = getResolution(Image.file(img));
+        res.then((info) {
+            var w = MediaQuery.of(context).size.width * 2 / 10;
+            var h = w * info.image.height / info.image.width;
+            var image = Image.file(img , fit: BoxFit.fill, width: w, height: h);
+            setState(() {
+                _image = image;
+            });
+            Navigator.pop(context);
         });
-        Navigator.pop(context);
     });
   }
 
+  static double hDefault = 775.0;
+  double _heightImage = hDefault * 0.15;
+  double _heightSwitch = hDefault * 0.05;
+  double _heightCard = hDefault * 0.7;
+  double _heightButton = hDefault * 0.1;
+
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
-      appBar: AppBar(
-       title: Text('פרופיל'),
-       actions: <Widget>[
-            IconButton(
-              icon: Icon(FontAwesomeIcons.running),
-              onPressed: () {
-                _select(choices[0]);
-              },
-            ),
-            // action button
-            IconButton(
-              icon: Icon(FontAwesomeIcons.signOutAlt),
-              onPressed: () {
-                _select(choices[0]);
-              },
-            ),
-            PopupMenuButton<Choice>(
-              onSelected: _select,
-              itemBuilder: (BuildContext context) {
-                return choices.skip(2).map((Choice choice) {
-                  return PopupMenuItem<Choice>(
-                    value: choice,
-                    child: Text(choice.title),
-                  );
-                }).toList();
-              },
-            ),
-          ],
+    return new Directionality(
+      textDirection: TextDirection.rtl,
+        child : new Scaffold(
+        appBar: AppBar(
+        title: Text('פרופיל'),
+        actions: <Widget>[
+              IconButton(
+                icon: Icon(FontAwesomeIcons.running),
+                onPressed: () {
+                  _select(choices[0]);
+                },
+              ),
+              // action button
+              IconButton(
+                icon: Icon(FontAwesomeIcons.signOutAlt),
+                onPressed: () {
+                  _select(choices[0]);
+                },
+              ),
+              PopupMenuButton<Choice>(
+                onSelected: _select,
+                itemBuilder: (BuildContext context) {
+                  return choices.skip(2).map((Choice choice) {
+                    return PopupMenuItem<Choice>(
+                      value: choice,
+                      child: Text(choice.title),
+                    );
+                  }).toList();
+                },
+              ),
+            ],
 
-      ),
-      key: _scaffoldKey,
-      body: NotificationListener<OverscrollIndicatorNotification>(
-        onNotification: (overscroll) {
-          overscroll.disallowGlow();
-        },
-        child: SingleChildScrollView(
-              child: Container(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height >= 775.0
-                    ? MediaQuery.of(context).size.height
-                    : 775.0,
-                decoration: new BoxDecoration(
-                  gradient: new LinearGradient(
-                      colors: [
-                        Theme.Colors.zarizGradientStart,
-                        Theme.Colors.zarizGradientEnd
-                      ],
-                      begin: const FractionalOffset(0.0, 0.0),
-                      end: const FractionalOffset(1.0, 1.0),
-                      stops: [0.0, 1.0],
-                      tileMode: TileMode.clamp),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  children: <Widget>[
-                    Padding(
-                      padding: EdgeInsets.only(top: 75.0),
-                      child: new FlatButton(
-                        onPressed: onImagePressed,
-                        child:  _image,
-                      ),   
-                    ),
-                    Padding(
-                      padding: EdgeInsets.only(top: 20.0),
-                      child: _buildMenuBar(context),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: PageView(
-                        controller: _pageController,
-                        onPageChanged: (i) {
-                          if (i == 0) {
-                            setState(() {
-                              right = Colors.white;
-                              left = Colors.black;
-                            });
-                          } else if (i == 1) {
-                            setState(() {
-                              right = Colors.black;
-                              left = Colors.white;
-                            });
-                          }
-                        },
-                        children: <Widget>[
-                          new ConstrainedBox(
-                            constraints: const BoxConstraints.expand(),
-                            child: _buildWorkerDetails(context),
-                          ),
-                          new ConstrainedBox(
-                            constraints: const BoxConstraints.expand(),
-                            child: _buildBossDetails(context),
-                          ),
+        ),
+        key: _scaffoldKey,
+        body: NotificationListener<OverscrollIndicatorNotification>(
+          onNotification: (overscroll) {
+            overscroll.disallowGlow();
+          },
+          child: SingleChildScrollView(
+                child: Container(
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height >= hDefault
+                      ? MediaQuery.of(context).size.height
+                      : hDefault,
+                  decoration: new BoxDecoration(
+                    gradient: new LinearGradient(
+                        colors: [
+                          Theme.Colors.zarizGradientStart,
+                          Theme.Colors.zarizGradientEnd
                         ],
+                        begin: const FractionalOffset(0.0, 0.0),
+                        end: const FractionalOffset(1.0, 1.0),
+                        stops: [0.0, 1.0],
+                        tileMode: TileMode.clamp),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      
+                      Padding(
+                        padding: EdgeInsets.only(top: 5.0),
+                        child: new FlatButton(
+                          onPressed: onImagePressed,
+                          child:  new ClipRRect(
+                            borderRadius: new BorderRadius.circular(2.0),
+                            child: _image,
+                            
+                          ),
+                        ),   
                       ),
-                    ),
-                  ],
+                      Padding(
+                        padding: EdgeInsets.only(top: 5.0, bottom: 5.0),
+                        child: _buildMenuBar(context),
+                      ),
+                      
+                      Expanded(
+                        flex: 2,
+                        child: PageView(
+                          controller: _pageController,
+                          onPageChanged: (i) {
+                            if (i == 0) {
+                              setState(() {
+                                right = Colors.white;
+                                left = Colors.black;
+                              });
+                            } else if (i == 1) {
+                              setState(() {
+                                right = Colors.black;
+                                left = Colors.white;
+                              });
+                            }
+                          },
+                          children: <Widget>[
+                            new ConstrainedBox(
+                              constraints: const BoxConstraints.expand(),
+                              child: _buildCarousel(context),
+                            ),
+                            new ConstrainedBox(
+                              constraints: const BoxConstraints.expand(),
+                              child: _buildBossDetails(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Flexible( child: new Container(
+                        height: _heightButton,
+                  margin: EdgeInsets.only(top: 5.0),
+                  decoration: new BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.circular(5.0)),
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: Theme.Colors.zarizGradientStart,
+                        offset: Offset(1.0, 6.0),
+                        blurRadius: 20.0,
+                      ),
+                      BoxShadow(
+                        color: Colors.black,
+                        offset: Offset(1.0, 6.0),
+                        blurRadius: 20.0,
+                      ),
+                    ],
+                    gradient: new LinearGradient(
+                        colors: [
+                          Theme.Colors.zarizGradientEnd,
+                          Theme.Colors.zarizGradientStart
+                        ],
+                        begin: const FractionalOffset(0.2, 0.2),
+                        end: const FractionalOffset(1.0, 1.0),
+                        stops: [0.0, 1.0],
+                        tileMode: TileMode.clamp),
+                  ),
+                  child: MaterialButton(
+                      highlightColor: Colors.transparent,
+                      splashColor: Theme.Colors.zarizGradientEnd,
+                      //shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 0.0, horizontal: 42.0),
+                        child: Text(
+                          "עדכון",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 25.0,
+                              fontFamily: "WorkSansBold"),
+                        ),
+                      ),
+                      onPressed: null,
+                      //onPressed: _bLoginEnabled ? (){ onLoginPressed(loginEmailController.text, loginPasswordController.text); } : null,
+                  ),
+                )),
+                    ],
+                  ),
                 ),
               ),
-            ),
+        ),
       ),
     );
   }
@@ -216,6 +308,13 @@ class _ProfilePageState extends State<ProfilePage>
   void initState() {
     super.initState();
 
+
+    var resFuture = getFieldDetails();
+    resFuture.then((res){
+        if ((res["success"] == "true") || (res["success"] == true)) {
+          var a = 3;
+        }
+    });
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -224,7 +323,7 @@ class _ProfilePageState extends State<ProfilePage>
     _pageController = PageController();
 
     final  prefs = SharedPreferences.getInstance();
-    prefs.then((o){
+    prefs.then((o){         
           retreivePersistentState(o);
           setState(() {
                       profileEmailController.text = o.getString("user");
@@ -232,6 +331,17 @@ class _ProfilePageState extends State<ProfilePage>
                       onProfilePressed(profileEmailController.text, profilePasswordController.text);
                     });
     });
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) {
+           var h = MediaQuery.of(context).size.height;
+          _heightImage = h * 0.15;
+          _heightSwitch = h * 0.05;
+          _heightCard = h * 0.7;
+          _heightButton = h * 0.05;
+
+          var w = _heightImage * _image.width / _image.height;
+          _image = new Image.asset('assets/img/no_portrait.png', fit: BoxFit.scaleDown, width: w, height: _heightImage);   
+        });
   }
 
   void showInSnackBar(String value) {
@@ -252,15 +362,16 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildMenuBar(BuildContext context) {
+    var widthSwitch = _heightSwitch * 10.0;
     return Container(
-      width: 300.0,
-      height: 50.0,
+      width: widthSwitch,
+      height: _heightSwitch,
       decoration: BoxDecoration(
         color: Color(0x552B2B2B),
         borderRadius: BorderRadius.all(Radius.circular(25.0)),
       ),
       child: CustomPaint(
-        painter: TabIndicationPainter(pageController: _pageController),
+        painter: TabIndicationPainter(dxTarget : (widthSwitch/2), radius : (_heightSwitch/2), dy : (_heightSwitch/2), dxEntry : 0.0, color: Theme.Colors.zarizGradientEnd.value, pageController: _pageController),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
@@ -299,6 +410,239 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
+  Widget _buildRow(BuildContext context) {
+    return new Container(
+      child: new Column(children:<Widget>[ 
+        new Row(children:<Widget>[ 
+        new Flexible(child: TextField(
+                            focusNode: myFocusNodeEmailProfile,
+                            controller: profileEmailController,
+                            keyboardType: TextInputType.emailAddress,
+                            
+                            style: TextStyle(
+                                fontFamily: "WorkSansSemiBold",
+                                fontSize: 16.0,
+                                color: Colors.black),
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              icon: Icon(
+                                FontAwesomeIcons.envelope,
+                                color: Colors.black87,
+                                size: 22.0,
+                              ),
+                              hintText: "שם פרטי",
+                              hintStyle: TextStyle(
+                                  fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+                            ),
+                          ),), 
+        new Flexible(child: TextField(
+                            focusNode: myFocusNodeEmailProfile,
+                            controller: profileEmailController,
+                            keyboardType: TextInputType.emailAddress,
+                            
+                            style: TextStyle(
+                                fontFamily: "WorkSansSemiBold",
+                                fontSize: 16.0,
+                                color: Colors.black),
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              icon: Icon(
+                                FontAwesomeIcons.envelope,
+                                color: Colors.black87,
+                                size: 22.0,
+                              ),
+                              hintText: "שם משפחה",
+                              hintStyle: TextStyle(
+                                  fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+                            ),
+                          ),)]),],)
+    );
+  }
+
+  Widget _buildWorkerDetails1(BuildContext context) {
+      return new Directionality(
+        textDirection: TextDirection.rtl,
+        child : new Container(
+          decoration: new BoxDecoration(
+                  gradient: new LinearGradient(
+                      colors: [
+                        Theme.Colors.zarizGradientStart,
+                        Theme.Colors.zarizGradientEnd
+                      ],
+                      begin: const FractionalOffset(0.0, 0.0),
+                      end: const FractionalOffset(1.0, 1.0),
+                      stops: [0.0, 1.0],
+                      tileMode: TileMode.clamp),
+                ),
+          padding: EdgeInsets.only(top: 23.0),
+          child: Column(
+            children: <Widget>[
+              Stack(
+                alignment: Alignment.topCenter,
+                overflow: Overflow.visible,
+                children: <Widget>[
+                  Card(
+                    elevation: 2.0,
+                    color: Colors.white54,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Container(
+                      //width: MediaQuery.of(context).size.width * 5 / 6,
+                      //height: MediaQuery.of(context).size.height * 2,
+                      child: new Column( children: <Widget>[
+                          Padding(
+                            padding: EdgeInsets.only(
+                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                            child: 
+                            new Row(
+                              children:<Widget>
+                              [ 
+                                new Flexible(child: TextField(
+                                focusNode: myFocusNodeEmailProfile,
+                                controller: profileEmailController,
+                                keyboardType: TextInputType.emailAddress,
+                                
+                                style: TextStyle(
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 16.0,
+                                  color: Colors.black),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    icon: Icon(
+                                      FontAwesomeIcons.user,
+                                      color: Colors.black87,
+                                      size: 22.0,
+                                    ),
+                                    hintText: "פרטי",
+                                    hintStyle: TextStyle(
+                                        fontFamily: "WorkSansSemiBold", fontSize: 17.0
+                                    ),
+                                  ),
+                                ),
+                                ),
+                                new Flexible(
+                                child: TextField(
+                                  focusNode: myFocusNodeEmailProfile,
+                                  controller: profileEmailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                
+                                  style: TextStyle(
+                                    fontFamily: "WorkSansSemiBold",
+                                    fontSize: 16.0,
+                                    color: Colors.black
+                                  ),
+                                  decoration: InputDecoration(
+                                    border: InputBorder.none,
+                                    icon: Icon(
+                                      FontAwesomeIcons.user,
+                                      color: Colors.black87,
+                                      size: 22.0,
+                                    ),
+                                    hintText: "משפחה",
+                                    hintStyle: TextStyle(
+                                    fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+                                  ),
+                                ),
+                              ),
+                              ]
+                            ),
+                          ),
+                          Container(
+                            width: 250.0,
+                            height: 1.0,
+                            color: Colors.grey[400],
+                          ),
+                          Padding(
+                            padding: EdgeInsets.only(
+                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                            child: TextField(
+                              focusNode: myFocusNodePasswordProfile,
+                              controller: profilePasswordController,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 16.0,
+                                  color: Colors.black),
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                icon: Icon(
+                                  FontAwesomeIcons.shekelSign,
+                                  size: 22.0,
+                                  color: Colors.black87,
+                                ),
+                                hintText: "שכר",
+                                hintStyle: TextStyle(
+                                    fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+                                
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 250.0,
+                            height: 1.0,
+                            color: Colors.grey[400],
+                          ),
+                          
+                      ]))),
+                  
+                ],
+              ),
+            ],
+          ),
+        ),
+              
+      );
+    }
+  Widget _buildWorkerDetails2(BuildContext context) {
+      return new Directionality(
+        textDirection: TextDirection.rtl,
+        child : new Container(
+          decoration: new BoxDecoration(
+                  gradient: new LinearGradient(
+                      colors: [
+                        Theme.Colors.zarizGradientStart,
+                        Theme.Colors.zarizGradientEnd
+                      ],
+                      begin: const FractionalOffset(0.0, 0.0),
+                      end: const FractionalOffset(1.0, 1.0),
+                      stops: [0.0, 1.0],
+                      tileMode: TileMode.clamp),
+                ),
+          padding: EdgeInsets.only(top: 23.0),
+          child: Column(
+            children: <Widget>[
+              Stack(
+                alignment: Alignment.topCenter,
+                overflow: Overflow.visible,
+                children: <Widget>[
+                  Card(
+                    elevation: 2.0,
+                    color: Colors.white54,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    child: Container(
+                      //width: MediaQuery.of(context).size.width * 5 / 6,
+                      //height: MediaQuery.of(context).size.height * 2,
+                      child: new Column( children: <Widget>[
+                          Padding(
+                            padding: EdgeInsets.only(
+                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                            child: createMultiGridView(), 
+                            
+                          ),                         
+                      ]))),
+                  
+                ],
+              ),
+            ],
+          ),
+        ),
+              
+      );
+    }
+  
   Widget _buildWorkerDetails(BuildContext context) {
     return new Directionality(
       textDirection: TextDirection.rtl,
@@ -317,33 +661,64 @@ class _ProfilePageState extends State<ProfilePage>
                     borderRadius: BorderRadius.circular(8.0),
                   ),
                   child: Container(
-                    width: 300.0,
-                    height: 190.0,
-                    child: Column(
-                      children: <Widget>[
+                    //width: MediaQuery.of(context).size.width * 5 / 6,
+                    //height: MediaQuery.of(context).size.height * 2,
+                    child: new Column( children: <Widget>[
                         Padding(
                           padding: EdgeInsets.only(
                               top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                          child: TextField(
-                            focusNode: myFocusNodeEmailProfile,
-                            controller: profileEmailController,
-                            keyboardType: TextInputType.emailAddress,
-                            
-                            style: TextStyle(
+                          child: 
+                          new Row(
+                            children:<Widget>
+                            [ 
+                              new Flexible(child: TextField(
+                              focusNode: myFocusNodeEmailProfile,
+                              controller: profileEmailController,
+                              keyboardType: TextInputType.emailAddress,
+                              
+                              style: TextStyle(
                                 fontFamily: "WorkSansSemiBold",
                                 fontSize: 16.0,
                                 color: Colors.black),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                FontAwesomeIcons.envelope,
-                                color: Colors.black87,
-                                size: 22.0,
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  icon: Icon(
+                                    FontAwesomeIcons.user,
+                                    color: Colors.black87,
+                                    size: 22.0,
+                                  ),
+                                  hintText: "פרטי",
+                                  hintStyle: TextStyle(
+                                      fontFamily: "WorkSansSemiBold", fontSize: 17.0
+                                  ),
+                                ),
                               ),
-                              hintText: "דואר אלקטרוני",
-                              hintStyle: TextStyle(
+                              ),
+                              new Flexible(
+                              child: TextField(
+                                focusNode: myFocusNodeEmailProfile,
+                                controller: profileEmailController,
+                                keyboardType: TextInputType.emailAddress,
+                              
+                                style: TextStyle(
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 16.0,
+                                  color: Colors.black
+                                ),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  icon: Icon(
+                                    FontAwesomeIcons.user,
+                                    color: Colors.black87,
+                                    size: 22.0,
+                                  ),
+                                  hintText: "משפחה",
+                                  hintStyle: TextStyle(
                                   fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+                                ),
+                              ),
                             ),
+                            ]
                           ),
                         ),
                         Container(
@@ -357,7 +732,7 @@ class _ProfilePageState extends State<ProfilePage>
                           child: TextField(
                             focusNode: myFocusNodePasswordProfile,
                             controller: profilePasswordController,
-                            obscureText: _obscureTextProfile,
+                            keyboardType: TextInputType.number,
                             style: TextStyle(
                                 fontFamily: "WorkSansSemiBold",
                                 fontSize: 16.0,
@@ -365,181 +740,86 @@ class _ProfilePageState extends State<ProfilePage>
                             decoration: InputDecoration(
                               border: InputBorder.none,
                               icon: Icon(
-                                FontAwesomeIcons.lock,
+                                FontAwesomeIcons.shekelSign,
                                 size: 22.0,
                                 color: Colors.black87,
                               ),
-                              hintText: "סיסמא",
+                              hintText: "שכר",
                               hintStyle: TextStyle(
                                   fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-                              suffixIcon: GestureDetector(
-                                onTap: _toggleProfile,
-                                child: Icon(
-                                  FontAwesomeIcons.eye,
-                                  size: 15.0,
-                                  color: Colors.black87,
-                                ),
-                              ),
+                              
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                Container(
-                  margin: EdgeInsets.only(top: 170.0),
-                  decoration: new BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(5.0)),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: Theme.Colors.zarizGradientStart,
-                        offset: Offset(1.0, 6.0),
-                        blurRadius: 20.0,
-                      ),
-                      BoxShadow(
-                        color: Theme.Colors.zarizGradientEnd,
-                        offset: Offset(1.0, 6.0),
-                        blurRadius: 20.0,
-                      ),
-                    ],
-                    gradient: new LinearGradient(
-                        colors: [
-                          Theme.Colors.zarizGradientEnd,
-                          Theme.Colors.zarizGradientStart
-                        ],
-                        begin: const FractionalOffset(0.2, 0.2),
-                        end: const FractionalOffset(1.0, 1.0),
-                        stops: [0.0, 1.0],
-                        tileMode: TileMode.clamp),
-                  ),
-                  child: MaterialButton(
-                      highlightColor: Colors.transparent,
-                      splashColor: Theme.Colors.zarizGradientEnd,
-                      //shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5.0))),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10.0, horizontal: 42.0),
-                        child: Text(
-                          "כניסה",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 25.0,
-                              fontFamily: "WorkSansBold"),
+                        Container(
+                          width: 250.0,
+                          height: 1.0,
+                          color: Colors.grey[400],
                         ),
-                      ),
-                      onPressed: _bProfileEnabled ? (){ onProfilePressed(profileEmailController.text, profilePasswordController.text); } : null,
-                  ),
-                ),
+                        
+                    ]))),
+                
               ],
             ),
-            Padding(
-              padding: EdgeInsets.only(top: 10.0),
-              child: FlatButton(
-                  onPressed: () {},
-                  child: Text(
-                    "שכחת סיסמא?",
-                    style: TextStyle(
-                        decoration: TextDecoration.underline,
-                        color: Colors.white,
-                        fontSize: 16.0,
-                        fontFamily: "WorkSansMedium"),
-                        textDirection: TextDirection.rtl,
-                  )),
-            ),
-            Padding(
-              padding: EdgeInsets.only(top: 10.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: new LinearGradient(
-                          colors: [
-                            Colors.white10,
-                            Colors.white,
-                          ],
-                          begin: const FractionalOffset(0.0, 0.0),
-                          end: const FractionalOffset(1.0, 1.0),
-                          stops: [0.0, 1.0],
-                          tileMode: TileMode.clamp),
-                    ),
-                    width: 100.0,
-                    height: 1.0,
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(left: 15.0, right: 15.0),
-                    child: Text(
-                      "או",
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16.0,
-                          fontFamily: "WorkSansMedium"),
-                    ),
-                  ),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: new LinearGradient(
-                          colors: [
-                            Colors.white,
-                            Colors.white10,
-                          ],
-                          begin: const FractionalOffset(0.0, 0.0),
-                          end: const FractionalOffset(1.0, 1.0),
-                          stops: [0.0, 1.0],
-                          tileMode: TileMode.clamp),
-                    ),
-                    width: 100.0,
-                    height: 1.0,
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Padding(
-                  padding: EdgeInsets.only(top: 10.0,left:10.0),
-                  child: GestureDetector(
-                    onTap: () => showInSnackBar("Facebook button pressed"),
-                    child: Container(
-                      padding: const EdgeInsets.all(15.0),
-                      decoration: new BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFF0084ff),
-                      ),
-                      child: new Icon(
-                        FontAwesomeIcons.facebookF,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.only(top: 10.0, right:10.0),
-                  child: GestureDetector(
-                    onTap: () => showInSnackBar("Google button pressed"),
-                    child: Container(
-                      padding: const EdgeInsets.all(15.0),
-                      decoration: new BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white70,
-                      ),
-                      child: new Icon(
-                        FontAwesomeIcons.google,
-                        color: Color(0xFF0084ff),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            new Expanded(child: createMultiGridView()),
+           
           ],
         ),
       ),
+            
     );
   }
 
+  GridView createMultiGridView(){
+    
+    var gridView = new GridView.builder(
+        itemCount: _litems.length,
+        shrinkWrap: true,
+        gridDelegate:
+            new SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3),
+        itemBuilder: (BuildContext context, int index) {
+          var s = _litems[index];
+          return new GestureDetector(
+            child: new Card(
+              elevation: 2.0,
+                  color: Colors.white54,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+              child: new Container(
+                alignment: Alignment.center,
+                child: new Text('$s'),
+              ),
+            ),
+            onTap: () {
+              showDialog(
+                barrierDismissible: false,
+                context: context,
+                child: new CupertinoAlertDialog(
+                  title: new Column(
+                    children: <Widget>[
+                      new Text("GridView"),
+                      new Icon(
+                        Icons.favorite,
+                        color: Colors.green,
+                      ),
+                    ],
+                  ),
+                  content: new Text("Selected Item $index"),
+                  actions: <Widget>[
+                    new FlatButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: new Text("OK"))
+                  ],
+                ),
+              );
+            },
+          );
+        });
+        return gridView;
+  }
   void onProfilePressed(email, password) {
     _bProfileEnabled = false;
     // var resFuture = performProfile(email, password);
@@ -574,6 +854,31 @@ class _ProfilePageState extends State<ProfilePage>
       //   }
       //    _bSignUpEnabled = true;
       // });
+  }
+  final List<Widget> DefaultPages = <Widget>[
+    new ConstrainedBox(
+      constraints: const BoxConstraints.expand(),
+      child: new FlutterLogo(colors: Colors.red),
+    ),
+    new ConstrainedBox(
+      constraints: const BoxConstraints.expand(),
+      child: new FlutterLogo(style: FlutterLogoStyle.stacked, colors: Colors.red),
+    ),
+    new ConstrainedBox(
+      constraints: const BoxConstraints.expand(),
+      child: new FlutterLogo(style: FlutterLogoStyle.horizontal, colors: Colors.red),
+    ),
+  ];
+
+  Widget _buildCarousel(BuildContext context) {
+    var c = new CarosuelState(pages : <Widget>[new ConstrainedBox(
+      constraints: const BoxConstraints.expand(),
+      child: _buildWorkerDetails1(context),
+    ),new ConstrainedBox(
+      constraints: const BoxConstraints.expand(),
+      child: _buildWorkerDetails2(context),
+    ),]);
+    return c.buildCarousel(context);
   }
   Widget _buildBossDetails(BuildContext context) {
     return new Directionality(

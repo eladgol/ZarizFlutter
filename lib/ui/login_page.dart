@@ -149,7 +149,7 @@ class _LoginPageState extends State<LoginPage>
           setState(() {
                       loginEmailController.text = o.getString("user");
                       loginPasswordController.text = o.getString("password");
-                      onLoginPressed(loginEmailController.text, loginPasswordController.text);
+                      //onLoginPressed(loginEmailController.text, loginPasswordController.text);
                     });
     });
   }
@@ -461,7 +461,10 @@ class _LoginPageState extends State<LoginPage>
   }
 
   void onLoginPressed(email, password) {
-    _bLoginEnabled = false;
+    
+    setState(() {
+          _bLoginEnabled = false;
+    });
     var resFuture = performLogin(email, password);
     resFuture.then((res){
         if ((res["success"] == "true") || (res["success"] == true)) {
@@ -474,13 +477,17 @@ class _LoginPageState extends State<LoginPage>
             showInSnackBar("שם משתמש או סיסמא אינם רשומים במערכת");
         } else {
             showInSnackBar("הקשר לשרת נכשל, אנא נסה שוב מאוחר יותר");
-        }  
-        _bLoginEnabled = true;
+        }
+        setState(() {
+            _bLoginEnabled = true;
+        });
     });
   }
   void onSignUpPressed(username, email, password)
   {
-      _bSignUpEnabled = false;
+      setState(() {
+          _bSignUpEnabled = false;
+      });
       var resFuture = performSignUp(username, email, password);
       resFuture.then((res){
         if ((res["success"] == "true") || (res["success"] == true) ){
@@ -496,7 +503,9 @@ class _LoginPageState extends State<LoginPage>
         } else {
             showInSnackBar("ההרשמה נכשלה");
         }
-         _bSignUpEnabled = true;
+        setState(() {
+            _bSignUpEnabled = true;
+        });
       });
   }
   Widget _buildSignUp(BuildContext context) {
@@ -700,7 +709,7 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  void signupButtonPressed() {
+  signupButtonPressed() {
     if (signupConfirmPasswordController.text != signupPasswordController.text) {
         showInSnackBar("הסיסמאות לא תואמות");
     } else if (signupNameController.text.isEmpty) {
@@ -728,15 +737,20 @@ class _LoginPageState extends State<LoginPage>
     });
   }
 
-  void _toggleSignup() {
+  _toggleSignup() {
     setState(() {
       _obscureTextSignup = !_obscureTextSignup;
     });
   }
 
-  void _toggleSignupConfirm() {
+   
+  _toggleSignupConfirm() {
     setState(() {
       _obscureTextSignupConfirm = !_obscureTextSignupConfirm;
     });
   }
+  getProgressDialog() {
+    return Center(child: CircularProgressIndicator());
+  }
+
 }
