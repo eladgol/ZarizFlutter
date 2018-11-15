@@ -1,45 +1,91 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
 
-
+import 'package:utf/utf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:zariz_app/style/theme.dart' as Theme;
+import 'package:zariz_app/style/theme.dart' as ZarizTheme;
 import 'package:zariz_app/utils/bubble_indication_painter.dart';
 import 'package:zariz_app/utils/Services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:google_maps_webservice/places.dart';
 import 'package:flutter/cupertino.dart';
 
 import 'package:zariz_app/ui/page_carousel.dart';
+import 'package:convert/convert.dart';
 
-class Details{
+import 'package:location/location.dart' as LocationGPS;
+
+import 'package:flutter/rendering.dart'; 
+
+class CurrentLocation {
+  String name = "Maor";
+  double lat = 0.0;
+  double lng = 0.0;
+}
+
+class WorkerDetails{
     String _firstName;
     String _lastName;
-    double _minWage;
-    String _occupationFieldListString;
-    int userID;
-    String photoAGCSPath;
+    double _wage;
+    List<String> _lOccupationFieldListString;
+    int _userID;
+    String _photoAGCSPath;
     double _radius;
+    String _place;
     double _lat;
     double _lng;
-    int _id;
+    Map<String, String> toJSON() => 
+    {
+      'firstName'     : _firstName,
+      'lastName'      : _lastName,
+      'wage'          : _wage.toString(),
+      'userID'        : _userID.toString(),
+      'photoAGCSPath' : _photoAGCSPath,
+      'radius'        : _radius.toString(),
+      'place'         : _place,
+      'lat'           : _lat.toString(),
+      'lng'           : _lng.toString()
+    };
   }
 
-class Choice {
-  const Choice({this.title, this.icon});
+class AppBarChoice {
+  const AppBarChoice({this.title, this.icon});
 
   final String title;
   final IconData icon;
 }
-const List<Choice> choices = const <Choice>[
-  const Choice(title: 'צא', icon: FontAwesomeIcons.signOutAlt),
-  const Choice(title: 'Bicycle', icon: Icons.directions_bike),
-  const Choice(title: 'Boat', icon: Icons.directions_boat),
-  const Choice(title: 'Bus', icon: Icons.directions_bus),
-  const Choice(title: 'Train', icon: Icons.directions_railway),
-  const Choice(title: 'Walk', icon: Icons.directions_walk),
+
+List<String> fixEncoding(String sIn) {
+  String sEncoded = sIn.replaceAll(new RegExp(r"u|'|\[|\]"), "");
+  List<String> lEncoded = sEncoded.split(',');
+  List<String> lOut = new List<String>();                      
+  lEncoded.forEach((e) {
+      e = e.trim();
+      var chars = e.split(new RegExp(r"\\| ")).skip(1).toList();
+      var sOut = "";
+      chars.forEach((c) {
+        if ((c != " u'") && (!(c as String).contains("["))) {    
+          if (c == "")
+            sOut += " ";
+          else
+            sOut += decodeUtf16(hex.decode(c));
+        }
+      });
+      lOut.add(sOut);
+  });   
+  return lOut;
+}
+
+List<AppBarChoice> choices = <AppBarChoice>[
+  AppBarChoice(title: 'update', icon: Icons.check),
+  AppBarChoice(title: 'logoff', icon: FontAwesomeIcons.signOutAlt),
+  AppBarChoice(title: 'debug', icon: FontAwesomeIcons.bug),
+  AppBarChoice(title: 'feed', icon: FontAwesomeIcons.solidBell),
 ];
 
 class ProfilePage extends StatefulWidget {
@@ -53,26 +99,19 @@ class _ProfilePageState extends State<ProfilePage>
 
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
 
-  final FocusNode myFocusNodeEmailProfile = FocusNode();
-  final FocusNode myFocusNodePasswordProfile = FocusNode();
 
-  final FocusNode myFocusNodePassword = FocusNode();
   final FocusNode myFocusNodeEmail = FocusNode();
-  final FocusNode myFocusNodeName = FocusNode();
-
-  TextEditingController profileEmailController = new TextEditingController();
-  TextEditingController profilePasswordController = new TextEditingController();
-
+  final FocusNode myFocusNodeFirstName = FocusNode();
+  final FocusNode myFocusNodeLastName = FocusNode();
+  final FocusNode myFocusNodeWage = FocusNode();
+  final FocusNode myFocusNodePlace = FocusNode();
+  final FocusNode myFocusNodeRadius = FocusNode();
+  
   bool _obscureTextProfile = true;
   bool _obscureTextSignup = true;
   bool _obscureTextSignupConfirm = true;
-
-  TextEditingController signupEmailController = new TextEditingController();
-  TextEditingController signupNameController = new TextEditingController();
-  TextEditingController signupPasswordController = new TextEditingController();
-  TextEditingController signupConfirmPasswordController =
-      new TextEditingController();
-
+  
+  bool _bHasChangedUpdate = false;
   PageController _pageController;
 
   Color left = Colors.black;
@@ -80,27 +119,86 @@ class _ProfilePageState extends State<ProfilePage>
 
   bool _bProfileEnabled = true;
   bool _bSignUpEnabled = true;
-  Choice _selectedChoice = choices[0];
+  AppBarChoice _selectedChoice = choices[0];
 
-  Details _details;
-  List<String> _litems = ["גינון", "הפקה", "חינוך", "כלים כבדים","sdsd","dsdsd"];
+  WorkerDetails _workerDetails;
+  Services _services = new Services();
 
-  void _select(Choice choice) {
+  TextEditingController _controllerFirstName = new TextEditingController();
+  TextEditingController _controllerLastName = new TextEditingController();
+  TextEditingController _controllerWage = new TextEditingController();
+  TextEditingController _controllerPlace = new TextEditingController();
+  TextEditingController _controllerRadius = new TextEditingController();
+
+  List<DropdownMenuItem<String>> _lPlacesDropDownList =[new DropdownMenuItem<String>(
+                                          value: "מאור",
+                                          child: new Text("מאור"),
+                                      )];
+                                      
+  List<Prediction> _lPlacesList =[];                         
+
+  String _imageFileBase64Data = "";
+
+  static final List<String> _lDefaultPossibleOccupation = ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","כ","ל","מ","נ","ס","ע","פ","צ","ק","ר","ש","ת"];
+  List<String> _lPossibleOccupation = _lDefaultPossibleOccupation;
+  List<Color> _colorOccupation =  new List<Color>.filled(_lDefaultPossibleOccupation.length, uncheckedColor);
+  List<bool> _selectedOccupation = new List<bool>.filled(_lDefaultPossibleOccupation.length, false);
+  void _select(AppBarChoice choice) {
     // Causes the app to rebuild with the new _selectedChoice.
     setState(() {
       _selectedChoice = choice;
+      if (choice.title == "update") {
+          print(_workerDetails.toString());
+          _workerDetails._photoAGCSPath = _imageFileBase64Data;
+          _services.updateInputForm(_workerDetails.toJSON());
+      }
+      if (choice.title == "debug") {
+          print(_workerDetails.toString());
+          debugDumpApp();
+          debugDumpRenderTree();
+      }
     });
   }
 
+  static final String kGoogleApiKey = "AIzaSyCKbtYyIOqIe1mmCIPIp_wezViTi2JHiC0";
+  GoogleMapsPlaces _placesAPI = new GoogleMapsPlaces(kGoogleApiKey);
+
+  void setPlaceLatLng(String sPlace) {
+    _placesAPI.searchByText(sPlace).then((a) {
+       if (a.results.length > 0) {
+        setState(() {
+          _workerDetails._lat = a.results[0].geometry.location.lat;
+          _workerDetails._lng = a.results[0].geometry.location.lng;
+          _workerDetails._place = a.results[0].name;
+          _bHasChangedUpdate = true;
+        });
+       }
+    });
+  }
   Image _image = new Image.asset('assets/img/no_portrait.png', fit: BoxFit.scaleDown, width: 250.0, height: 191.0);
 
   Future getImage() async {
     ImageSource _source;
     showModalBottomSheet<void>(context:context, builder: (BuildContext context) {
-      return new Row(mainAxisAlignment: MainAxisAlignment.center, children: <Widget>[
-        new IconButton(icon: Icon(FontAwesomeIcons.camera), onPressed: (){_source = ImageSource.camera;imagePick(_source);;}),
+      return new Theme(
+                                        data: new ThemeData(
+                                          fontFamily: "WorkSansSemiBold", 
+                                          canvasColor: ZarizTheme.Colors.zarizGradientStart, //my custom color
+                                        ),
+                                        child: new Container( decoration: new BoxDecoration(
+                    gradient: new LinearGradient(
+                        colors: [
+                          ZarizTheme.Colors.zarizGradientStart,
+                          ZarizTheme.Colors.zarizGradientEnd
+                        ],
+                        begin: const FractionalOffset(0.0, 0.0),
+                        end: const FractionalOffset(1.0, 1.0),
+                        stops: [0.0, 1.0],
+                        tileMode: TileMode.clamp),
+                  ),child: new Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: <Widget>[
+        new IconButton(icon: Icon(FontAwesomeIcons.camera), onPressed: (){_source = ImageSource.camera;imagePick(_source);}),
         new IconButton(icon: Icon(FontAwesomeIcons.fileImage), onPressed: (){_source = ImageSource.gallery;imagePick(_source);}),
-        ]);
+        ])));
     });
   }
   getResolution(Image image) {
@@ -110,14 +208,23 @@ class _ProfilePageState extends State<ProfilePage>
       .addListener((ImageInfo info, bool _) => completer.complete(info));
     return completer.future;
   }
+  Image getAdjustedImageFromFile(File img, ImageInfo info) {
+    
+    var w = _heightImage *  info.image.width / info.image.height ;
+    return (Image.file(img , fit: BoxFit.fill, width: w, height: _heightImage));           
+  }
   void imagePick(ImageSource _source) {
     ImagePicker.pickImage(source: _source).then((img){
         var res = getResolution(Image.file(img));
         res.then((info) {
-            var w = MediaQuery.of(context).size.width * 2 / 10;
-            var h = w * info.image.height / info.image.width;
-            var image = Image.file(img , fit: BoxFit.fill, width: w, height: h);
+            Image image = getAdjustedImageFromFile(img, info);
+            var prefix = img.path.split('.')[img.path.split('.').length-1];
+            List<int> imageBytes = img.readAsBytesSync();
+            saveImage(imageBytes, "jpg").then((sFileName){
+              
+            });
             setState(() {
+                _imageFileBase64Data = 'data:image/$prefix;base64,' + base64.encode(imageBytes);
                 _image = image;
             });
             Navigator.pop(context);
@@ -125,13 +232,39 @@ class _ProfilePageState extends State<ProfilePage>
     });
   }
 
+
   static double hDefault = 775.0;
   double _heightImage = hDefault * 0.15;
   double _heightSwitch = hDefault * 0.05;
-  double _heightCard = hDefault * 0.7;
+  double _heightCard = hDefault * 0.5;
   double _heightButton = hDefault * 0.1;
 
-  @override
+  CurrentLocation _currLocation = new CurrentLocation();
+ 
+  //@override
+  // Widget build(BuildContext context) {
+  //   return new Directionality(
+  //     textDirection: TextDirection.rtl,
+      
+  //     child : new Scaffold(
+        
+  //       body: NotificationListener<OverscrollIndicatorNotification>(
+  //         onNotification: (overscroll) {
+  //           overscroll.disallowGlow();
+  //         },
+          
+          
+  //           child: new Container(
+  //             width: MediaQuery.of(context).size.width,
+  //             height:  MediaQuery.of(context).size.height * 0.9,
+  //             child: new SingleChildScrollView(
+  //               child: _buildCarousel(context),
+  //               )
+  //           )
+  //       )
+  //     )
+  //   );
+  // }
   Widget build(BuildContext context) {
     return new Directionality(
       textDirection: TextDirection.rtl,
@@ -140,23 +273,31 @@ class _ProfilePageState extends State<ProfilePage>
         title: Text('פרופיל'),
         actions: <Widget>[
               IconButton(
-                icon: Icon(FontAwesomeIcons.running),
+                icon: new Icon(Icons.check),
                 onPressed: () {
                   _select(choices[0]);
+                  
                 },
+                color: _bHasChangedUpdate ? Colors.red: Colors.green,
               ),
               // action button
               IconButton(
                 icon: Icon(FontAwesomeIcons.signOutAlt),
                 onPressed: () {
-                  _select(choices[0]);
+                  _select(choices[1]);
                 },
               ),
-              PopupMenuButton<Choice>(
+              IconButton(
+                icon: Icon(FontAwesomeIcons.bug),
+                onPressed: () {
+                  _select(choices[2]);
+                },
+              ),
+              PopupMenuButton<AppBarChoice>(
                 onSelected: _select,
                 itemBuilder: (BuildContext context) {
-                  return choices.skip(2).map((Choice choice) {
-                    return PopupMenuItem<Choice>(
+                  return choices.skip(2).map((AppBarChoice choice) {
+                    return PopupMenuItem<AppBarChoice>(
                       value: choice,
                       child: Text(choice.title),
                     );
@@ -180,8 +321,8 @@ class _ProfilePageState extends State<ProfilePage>
                   decoration: new BoxDecoration(
                     gradient: new LinearGradient(
                         colors: [
-                          Theme.Colors.zarizGradientStart,
-                          Theme.Colors.zarizGradientEnd
+                          ZarizTheme.Colors.zarizGradientStart,
+                          ZarizTheme.Colors.zarizGradientEnd
                         ],
                         begin: const FractionalOffset(0.0, 0.0),
                         end: const FractionalOffset(1.0, 1.0),
@@ -189,11 +330,10 @@ class _ProfilePageState extends State<ProfilePage>
                         tileMode: TileMode.clamp),
                   ),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       
                       Padding(
-                        padding: EdgeInsets.only(top: 5.0),
+                        padding: EdgeInsets.only(top: 1.0),
                         child: new FlatButton(
                           onPressed: onImagePressed,
                           child:  new ClipRRect(
@@ -208,7 +348,7 @@ class _ProfilePageState extends State<ProfilePage>
                         child: _buildMenuBar(context),
                       ),
                       
-                      Expanded(
+                      Flexible(
                         flex: 2,
                         child: PageView(
                           controller: _pageController,
@@ -226,9 +366,10 @@ class _ProfilePageState extends State<ProfilePage>
                             }
                           },
                           children: <Widget>[
-                            new ConstrainedBox(
-                              constraints: const BoxConstraints.expand(),
+                            new SingleChildScrollView(
+                              //constraints: const BoxConstraints.expand(),
                               child: _buildCarousel(context),
+                              primary: false,
                             ),
                             new ConstrainedBox(
                               constraints: const BoxConstraints.expand(),
@@ -237,52 +378,6 @@ class _ProfilePageState extends State<ProfilePage>
                           ],
                         ),
                       ),
-                      Flexible( child: new Container(
-                        height: _heightButton,
-                  margin: EdgeInsets.only(top: 5.0),
-                  decoration: new BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(5.0)),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: Theme.Colors.zarizGradientStart,
-                        offset: Offset(1.0, 6.0),
-                        blurRadius: 20.0,
-                      ),
-                      BoxShadow(
-                        color: Colors.black,
-                        offset: Offset(1.0, 6.0),
-                        blurRadius: 20.0,
-                      ),
-                    ],
-                    gradient: new LinearGradient(
-                        colors: [
-                          Theme.Colors.zarizGradientEnd,
-                          Theme.Colors.zarizGradientStart
-                        ],
-                        begin: const FractionalOffset(0.2, 0.2),
-                        end: const FractionalOffset(1.0, 1.0),
-                        stops: [0.0, 1.0],
-                        tileMode: TileMode.clamp),
-                  ),
-                  child: MaterialButton(
-                      highlightColor: Colors.transparent,
-                      splashColor: Theme.Colors.zarizGradientEnd,
-                      //shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5.0))),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 0.0, horizontal: 42.0),
-                        child: Text(
-                          "עדכון",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 25.0,
-                              fontFamily: "WorkSansBold"),
-                        ),
-                      ),
-                      onPressed: null,
-                      //onPressed: _bLoginEnabled ? (){ onLoginPressed(loginEmailController.text, loginPasswordController.text); } : null,
-                  ),
-                )),
                     ],
                   ),
                 ),
@@ -291,28 +386,102 @@ class _ProfilePageState extends State<ProfilePage>
       ),
     );
   }
+  static final uncheckedColor = ZarizTheme.Colors.zarizGradientEnd.withAlpha(64);
+  static final checkedColor = ZarizTheme.Colors.zarizGradientEnd.withAlpha(240);
+
 
   void onImagePressed(){
       getImage();
   }
   @override
   void dispose() {
-    myFocusNodePassword.dispose();
     myFocusNodeEmail.dispose();
-    myFocusNodeName.dispose();
+    myFocusNodeFirstName.dispose();
+    myFocusNodeLastName.dispose();
+    myFocusNodeWage.dispose();
+    myFocusNodePlace.dispose();
+    myFocusNodeRadius.dispose();
     _pageController?.dispose();
     super.dispose();
   }
-
+  int _tLength = 2;
   @override
   void initState() {
     super.initState();
+    setState(() {
+          _placesMenuVisible = false;
+        });
 
-
-    var resFuture = getFieldDetails();
+    var resFuture = _services.getFieldDetails();
     resFuture.then((res){
         if ((res["success"] == "true") || (res["success"] == true)) {
-          var a = 3;
+          _workerDetails = new WorkerDetails();
+          _workerDetails._firstName = res["firstName"];
+          _workerDetails._lastName = res["lastName"];
+          _workerDetails._lat = res["lat"];
+          _workerDetails._lng = res["lng"];
+          _workerDetails._photoAGCSPath = res["photoAGCSPath"];
+          _workerDetails._radius = res["radius"];
+          _workerDetails._wage = res["wage"];
+          _workerDetails._place = res["place"];
+          
+          _controllerFirstName.text = _workerDetails._firstName;
+          _controllerLastName.text  = _workerDetails._lastName;
+          _controllerPlace.text     = _workerDetails._place;
+          _controllerWage.text      =  _workerDetails._wage.toString();
+          _controllerRadius.text    = _workerDetails._radius.toString();
+
+
+          _controllerFirstName.addListener((){
+            setState(() {
+              _workerDetails._firstName = _controllerFirstName.text;
+              _bHasChangedUpdate = true;
+            });
+          }); 
+          _controllerLastName.addListener((){
+            setState(() {
+              _workerDetails._lastName = _controllerLastName.text;
+              _bHasChangedUpdate = true;
+            });
+          });
+          _controllerWage.addListener((){
+            setState(() {
+              _workerDetails._wage = double.parse(_controllerWage.text) ;
+              _bHasChangedUpdate = true;
+            });
+          });
+          _controllerRadius.addListener((){
+            setState(() {
+              _workerDetails._radius = double.parse(_controllerRadius.text) ;
+              _bHasChangedUpdate = true;
+            });
+          });
+          _controllerPlace.addListener((){
+            _textForAutoCompleteChanged();
+            setState(() {
+              _bHasChangedUpdate = true;
+            });
+          });            
+        }
+    });
+    var resFuture2 = _services.getOccupationDetails();
+    resFuture2.then((res){
+        if ((res["success"] == "true") || (res["success"] == true)) {
+          setState(() {
+            _lPossibleOccupation = fixEncoding(res["possibleFields"]);
+            var lSelectedOccupation = fixEncoding(res["pickedFields"]);
+            _colorOccupation = new List<Color>.filled(_lPossibleOccupation.length, uncheckedColor);
+            _selectedOccupation = new List<bool>.filled(_lPossibleOccupation.length, false);
+            lSelectedOccupation.forEach((e) {
+                int i = _lPossibleOccupation.indexOf(e);
+                if (i >= 0) {
+                  _selectedOccupation[i] = true;
+                  _colorOccupation[i] = checkedColor;
+                }
+
+            });
+            
+          });
         }
     });
     SystemChrome.setPreferredOrientations([
@@ -326,22 +495,108 @@ class _ProfilePageState extends State<ProfilePage>
     prefs.then((o){         
           retreivePersistentState(o);
           setState(() {
-                      profileEmailController.text = o.getString("user");
-                      profilePasswordController.text = o.getString("password");
-                      onProfilePressed(profileEmailController.text, profilePasswordController.text);
+                      
                     });
     });
+    var currentLocation = <String, double>{};
+
+    var location = new LocationGPS.Location();
+
+    // Platform messages may fail, so we use a try/catch PlatformException.
+    try {
+      var c = location.getLocation();
+      c.then((l){
+          print(l.toString());
+          var lat = l["latitude"];
+          var lng = l["longitude"];
+          var loc = new Location(lat, lng);
+          var res = _placesAPI.searchNearbyWithRadius(loc, 1000.0);
+          res.then((v){
+            print(v.toString());
+            if (v.status == "OK") {
+              setState(() {
+                _currLocation.name = v.results[0].name;
+                _currLocation.lat = v.results[0].geometry.location.lat;
+                _currLocation.lng = v.results[0].geometry.location.lng;
+                _lPlacesDropDownList =[new DropdownMenuItem<String>(
+                                          value: _currLocation.name ,
+                                          child: new Text(_currLocation.name ),
+                                      )];  
+
+              });
+            }
+          });
+      }).catchError((e) {
+          print(e.toString());
+        }
+      );
+
+      
+
+    } catch (e){
+      currentLocation = null;
+    }
+    
     WidgetsBinding.instance
         .addPostFrameCallback((_) {
            var h = MediaQuery.of(context).size.height;
+           var w = _heightImage * _image.width / _image.height;
+           setState(() {
+                        
+          
           _heightImage = h * 0.15;
           _heightSwitch = h * 0.05;
-          _heightCard = h * 0.7;
+          _heightCard = h * 0.5;
           _heightButton = h * 0.05;
-
-          var w = _heightImage * _image.width / _image.height;
-          _image = new Image.asset('assets/img/no_portrait.png', fit: BoxFit.scaleDown, width: w, height: _heightImage);   
+          });
+          String fileName = Singleton().persistentState.getString('profilePic');
+          
+          if (fileName == null){
+            _image = new Image.asset('assets/img/no_portrait.png', fit: BoxFit.scaleDown, width: w, height: _heightImage);     
+          } else {
+            _image = Image.file(File(fileName), fit: BoxFit.scaleDown, width: w, height: _heightImage);
+          }
+          
         });
+  }
+  _textForAutoCompleteChanged() {
+    
+    String t = "${_controllerPlace.text}";
+    if ((t.length > 2) && (t.length > _tLength)) {
+        setState(() {
+          _placesMenuVisible = true;
+          _bIsLoadingPlaces = true;
+        });
+        Location nearL = new Location(_currLocation.lat, _currLocation.lng);
+        _placesAPI.queryAutocomplete(t, location: nearL, radius: 300000.0).then((res){   
+           setState(() { 
+            _lPlacesDropDownList.clear();
+           });
+          for (var i=0; i < res.predictions.length; i++ ) {
+            setState(() {
+            _lPlacesDropDownList.add(new DropdownMenuItem<String>(
+                                          value: res.predictions[i].description,
+                                          child: new Text(res.predictions[i].description),
+                                      ));
+            });
+            
+          }
+          setState(() 
+          {
+            _bIsLoadingPlaces = false;
+          });
+        }).catchError((e){
+          print(e.toString());
+        });
+        
+    } else {
+        setState(() {
+           _placesMenuVisible = false;       
+           _bIsLoadingPlaces = false;
+        });
+    }
+    _tLength = t.length;
+
   }
 
   void showInSnackBar(String value) {
@@ -360,7 +615,7 @@ class _ProfilePageState extends State<ProfilePage>
       duration: Duration(seconds: 3),
     ));
   }
-
+  bool _placesMenuVisible = false;
   Widget _buildMenuBar(BuildContext context) {
     var widthSwitch = _heightSwitch * 10.0;
     return Container(
@@ -371,7 +626,7 @@ class _ProfilePageState extends State<ProfilePage>
         borderRadius: BorderRadius.all(Radius.circular(25.0)),
       ),
       child: CustomPaint(
-        painter: TabIndicationPainter(dxTarget : (widthSwitch/2), radius : (_heightSwitch/2), dy : (_heightSwitch/2), dxEntry : 0.0, color: Theme.Colors.zarizGradientEnd.value, pageController: _pageController),
+        painter: TabIndicationPainter(dxTarget : (widthSwitch/2), radius : (_heightSwitch/2), dy : (_heightSwitch/2), dxEntry : 0.0, color: ZarizTheme.Colors.zarizGradientEnd.value, pageController: _pageController),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
@@ -379,7 +634,7 @@ class _ProfilePageState extends State<ProfilePage>
               child: FlatButton(
                 splashColor: Colors.transparent,
                 highlightColor: Colors.transparent,
-                onPressed: _onSignInButtonPress,
+                onPressed: _onWorkerButtonPress,
                 child: Text(
                   "עובד",
                   style: TextStyle(
@@ -394,7 +649,7 @@ class _ProfilePageState extends State<ProfilePage>
               child: FlatButton(
                 splashColor: Colors.transparent,
                 highlightColor: Colors.transparent,
-                onPressed: _onSignUpButtonPress,
+                onPressed: _onBossButtonPress,
                 child: Text(
                   "מעביד",
                   style: TextStyle(
@@ -410,55 +665,15 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildRow(BuildContext context) {
-    return new Container(
-      child: new Column(children:<Widget>[ 
-        new Row(children:<Widget>[ 
-        new Flexible(child: TextField(
-                            focusNode: myFocusNodeEmailProfile,
-                            controller: profileEmailController,
-                            keyboardType: TextInputType.emailAddress,
-                            
-                            style: TextStyle(
-                                fontFamily: "WorkSansSemiBold",
-                                fontSize: 16.0,
-                                color: Colors.black),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                FontAwesomeIcons.envelope,
-                                color: Colors.black87,
-                                size: 22.0,
-                              ),
-                              hintText: "שם פרטי",
-                              hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-                            ),
-                          ),), 
-        new Flexible(child: TextField(
-                            focusNode: myFocusNodeEmailProfile,
-                            controller: profileEmailController,
-                            keyboardType: TextInputType.emailAddress,
-                            
-                            style: TextStyle(
-                                fontFamily: "WorkSansSemiBold",
-                                fontSize: 16.0,
-                                color: Colors.black),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                FontAwesomeIcons.envelope,
-                                color: Colors.black87,
-                                size: 22.0,
-                              ),
-                              hintText: "שם משפחה",
-                              hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-                            ),
-                          ),)]),],)
-    );
+  void _onWorkerButtonPress() {
+    _pageController.animateToPage(0,
+        duration: Duration(milliseconds: 500), curve: Curves.decelerate);
   }
-
+  bool _bIsLoadingPlaces = false;
+  void _onBossButtonPress() {
+    _pageController?.animateToPage(1,
+        duration: Duration(milliseconds: 500), curve: Curves.decelerate);
+  }
   Widget _buildWorkerDetails1(BuildContext context) {
       return new Directionality(
         textDirection: TextDirection.rtl,
@@ -466,8 +681,8 @@ class _ProfilePageState extends State<ProfilePage>
           decoration: new BoxDecoration(
                   gradient: new LinearGradient(
                       colors: [
-                        Theme.Colors.zarizGradientStart,
-                        Theme.Colors.zarizGradientEnd
+                        ZarizTheme.Colors.zarizGradientStart,
+                        ZarizTheme.Colors.zarizGradientEnd
                       ],
                       begin: const FractionalOffset(0.0, 0.0),
                       end: const FractionalOffset(1.0, 1.0),
@@ -499,8 +714,8 @@ class _ProfilePageState extends State<ProfilePage>
                               children:<Widget>
                               [ 
                                 new Flexible(child: TextField(
-                                focusNode: myFocusNodeEmailProfile,
-                                controller: profileEmailController,
+                                focusNode: myFocusNodeFirstName,
+                                controller: _controllerFirstName,
                                 keyboardType: TextInputType.emailAddress,
                                 
                                 style: TextStyle(
@@ -510,7 +725,7 @@ class _ProfilePageState extends State<ProfilePage>
                                   decoration: InputDecoration(
                                     border: InputBorder.none,
                                     icon: Icon(
-                                      FontAwesomeIcons.user,
+                                      FontAwesomeIcons.userAlt,
                                       color: Colors.black87,
                                       size: 22.0,
                                     ),
@@ -523,8 +738,8 @@ class _ProfilePageState extends State<ProfilePage>
                                 ),
                                 new Flexible(
                                 child: TextField(
-                                  focusNode: myFocusNodeEmailProfile,
-                                  controller: profileEmailController,
+                                  focusNode: myFocusNodeLastName,
+                                  controller: _controllerLastName,
                                   keyboardType: TextInputType.emailAddress,
                                 
                                   style: TextStyle(
@@ -535,7 +750,7 @@ class _ProfilePageState extends State<ProfilePage>
                                   decoration: InputDecoration(
                                     border: InputBorder.none,
                                     icon: Icon(
-                                      FontAwesomeIcons.user,
+                                      FontAwesomeIcons.users,
                                       color: Colors.black87,
                                       size: 22.0,
                                     ),
@@ -553,12 +768,116 @@ class _ProfilePageState extends State<ProfilePage>
                             height: 1.0,
                             color: Colors.grey[400],
                           ),
+
+                          
+                          //_placesMenuVisible ?
+                           
+                          new Row(
+                            children:<Widget>
+                            [ 
+                              new Flexible(
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                      top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                                  child: TextField(
+                                    focusNode: myFocusNodePlace,
+                                    controller: _controllerPlace,
+                                    keyboardType: TextInputType.text,
+                                    style: TextStyle(
+                                        fontFamily: "WorkSansSemiBold",
+                                        fontSize: 16.0,
+                                        color: Colors.black),
+                                    decoration: InputDecoration(
+                                      border: InputBorder.none,
+                                      icon: Icon(
+                                        FontAwesomeIcons.mapMarker,
+                                        size: 22.0,
+                                        color: Colors.black87,
+                                      ),
+                                      hintText: "מקום",
+                                      hintStyle: TextStyle(
+                                          fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+                                      
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              _bIsLoadingPlaces ? new CircularProgressIndicator():new Container(),
+                              new Flexible(
+                                  child: Padding(
+                                    padding: EdgeInsets.only(
+                                        top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                                    child: new SingleChildScrollView
+                                    (
+                                      child: new Theme(
+                                        data: new ThemeData(
+                                          fontFamily: "WorkSansSemiBold", 
+                                          canvasColor: Colors.white54, //my custom color
+                                        ),
+                                        child: 
+                                            new DropdownButton(
+                                              iconSize: 30.0,
+                                              items: _lPlacesDropDownList,
+                                              onChanged: ((s)
+                                              {
+                                                _controllerPlace.text = s;
+                                                _bHasChangedUpdate = true;
+                                                setPlaceLatLng(s);
+                                              }),
+                                              )
+                                        
+                                    ),
+                                    scrollDirection: Axis.horizontal,
+                                      
+                                  )
+                                )
+                              )
+                            ]
+                          ),
+                          //))) : Container(),
+                          Container(
+                            width: 250.0,
+                            height: 1.0,
+                            color: Colors.grey[400],
+                          ),
+
                           Padding(
                             padding: EdgeInsets.only(
                                 top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
                             child: TextField(
-                              focusNode: myFocusNodePasswordProfile,
-                              controller: profilePasswordController,
+                              focusNode: myFocusNodeRadius,
+                              controller: _controllerRadius,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 16.0,
+                                  color: Colors.black),
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                icon: Icon(
+                                  FontAwesomeIcons.route,
+                                  size: 22.0,
+                                  color: Colors.black87,
+                                ),
+                                hintText: "מרחק",
+                                hintStyle: TextStyle(
+                                    fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+                                
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 250.0,
+                            height: 1.0,
+                            color: Colors.grey[400],
+                          ),
+ 
+                          Padding(
+                            padding: EdgeInsets.only(
+                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                            child: TextField(
+                              focusNode: myFocusNodeWage,
+                              controller: _controllerWage,
                               keyboardType: TextInputType.number,
                               style: TextStyle(
                                   fontFamily: "WorkSansSemiBold",
@@ -583,7 +902,7 @@ class _ProfilePageState extends State<ProfilePage>
                             height: 1.0,
                             color: Colors.grey[400],
                           ),
-                          
+
                       ]))),
                   
                 ],
@@ -601,282 +920,87 @@ class _ProfilePageState extends State<ProfilePage>
           decoration: new BoxDecoration(
                   gradient: new LinearGradient(
                       colors: [
-                        Theme.Colors.zarizGradientStart,
-                        Theme.Colors.zarizGradientEnd
+                        ZarizTheme.Colors.zarizGradientStart,
+                        ZarizTheme.Colors.zarizGradientEnd
                       ],
                       begin: const FractionalOffset(0.0, 0.0),
                       end: const FractionalOffset(1.0, 1.0),
                       stops: [0.0, 1.0],
                       tileMode: TileMode.clamp),
                 ),
-          padding: EdgeInsets.only(top: 23.0),
-          child: Column(
-            children: <Widget>[
-              Stack(
-                alignment: Alignment.topCenter,
-                overflow: Overflow.visible,
-                children: <Widget>[
-                  Card(
-                    elevation: 2.0,
-                    color: Colors.white54,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    child: Container(
-                      //width: MediaQuery.of(context).size.width * 5 / 6,
-                      //height: MediaQuery.of(context).size.height * 2,
-                      child: new Column( children: <Widget>[
-                          Padding(
-                            padding: EdgeInsets.only(
-                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                            child: createMultiGridView(), 
-                            
-                          ),                         
-                      ]))),
+          //padding: EdgeInsets.only(top: 23.0),
+          child:
                   
-                ],
-              ),
-            ],
-          ),
-        ),
-              
-      );
+                      new SingleChildScrollView(scrollDirection: Axis.vertical,
+                      child:createMultiGridView())
+
+                  
+                
+              )    
+          
+          );
+             
+      
     }
   
-  Widget _buildWorkerDetails(BuildContext context) {
-    return new Directionality(
-      textDirection: TextDirection.rtl,
-      child : new Container(
-        padding: EdgeInsets.only(top: 23.0),
-        child: Column(
-          children: <Widget>[
-            Stack(
-              alignment: Alignment.topCenter,
-              overflow: Overflow.visible,
-              children: <Widget>[
-                Card(
-                  elevation: 2.0,
-                  color: Colors.white54,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Container(
-                    //width: MediaQuery.of(context).size.width * 5 / 6,
-                    //height: MediaQuery.of(context).size.height * 2,
-                    child: new Column( children: <Widget>[
-                        Padding(
-                          padding: EdgeInsets.only(
-                              top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                          child: 
-                          new Row(
-                            children:<Widget>
-                            [ 
-                              new Flexible(child: TextField(
-                              focusNode: myFocusNodeEmailProfile,
-                              controller: profileEmailController,
-                              keyboardType: TextInputType.emailAddress,
-                              
-                              style: TextStyle(
-                                fontFamily: "WorkSansSemiBold",
-                                fontSize: 16.0,
-                                color: Colors.black),
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  icon: Icon(
-                                    FontAwesomeIcons.user,
-                                    color: Colors.black87,
-                                    size: 22.0,
-                                  ),
-                                  hintText: "פרטי",
-                                  hintStyle: TextStyle(
-                                      fontFamily: "WorkSansSemiBold", fontSize: 17.0
-                                  ),
-                                ),
-                              ),
-                              ),
-                              new Flexible(
-                              child: TextField(
-                                focusNode: myFocusNodeEmailProfile,
-                                controller: profileEmailController,
-                                keyboardType: TextInputType.emailAddress,
-                              
-                                style: TextStyle(
-                                  fontFamily: "WorkSansSemiBold",
-                                  fontSize: 16.0,
-                                  color: Colors.black
-                                ),
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  icon: Icon(
-                                    FontAwesomeIcons.user,
-                                    color: Colors.black87,
-                                    size: 22.0,
-                                  ),
-                                  hintText: "משפחה",
-                                  hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-                                ),
-                              ),
-                            ),
-                            ]
-                          ),
-                        ),
-                        Container(
-                          width: 250.0,
-                          height: 1.0,
-                          color: Colors.grey[400],
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(
-                              top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                          child: TextField(
-                            focusNode: myFocusNodePasswordProfile,
-                            controller: profilePasswordController,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(
-                                fontFamily: "WorkSansSemiBold",
-                                fontSize: 16.0,
-                                color: Colors.black),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                FontAwesomeIcons.shekelSign,
-                                size: 22.0,
-                                color: Colors.black87,
-                              ),
-                              hintText: "שכר",
-                              hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-                              
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: 250.0,
-                          height: 1.0,
-                          color: Colors.grey[400],
-                        ),
-                        
-                    ]))),
-                
-              ],
-            ),
-            new Expanded(child: createMultiGridView()),
-           
-          ],
-        ),
-      ),
-            
-    );
-  }
+  final ScrollController _scrollController = ScrollController();
 
   GridView createMultiGridView(){
-    
     var gridView = new GridView.builder(
-        itemCount: _litems.length,
+        controller: _scrollController,
+        itemCount: _lPossibleOccupation.length,
         shrinkWrap: true,
         gridDelegate:
             new SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3),
         itemBuilder: (BuildContext context, int index) {
-          var s = _litems[index];
+          var s = _lPossibleOccupation[index];
           return new GestureDetector(
             child: new Card(
-              elevation: 2.0,
+              elevation: (_selectedOccupation[index])?6.0:2.0,
                   color: Colors.white54,
                   shape: RoundedRectangleBorder(
+                    side: new BorderSide(color: _colorOccupation[index], width: (_selectedOccupation[index])?6.0:12.0),
                     borderRadius: BorderRadius.circular(8.0),
                   ),
-              child: new Container(
-                alignment: Alignment.center,
-                child: new Text('$s'),
+              
+                child: new Text('$s', textAlign: TextAlign.center,style: TextStyle(
+                                fontFamily: "WorkSansSemiBold",
+                                fontSize: 16.0,
+                                color: Colors.black)),
               ),
-            ),
+            
             onTap: () {
-              showDialog(
-                barrierDismissible: false,
-                context: context,
-                child: new CupertinoAlertDialog(
-                  title: new Column(
-                    children: <Widget>[
-                      new Text("GridView"),
-                      new Icon(
-                        Icons.favorite,
-                        color: Colors.green,
-                      ),
-                    ],
-                  ),
-                  content: new Text("Selected Item $index"),
-                  actions: <Widget>[
-                    new FlatButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: new Text("OK"))
-                  ],
-                ),
-              );
+              setState(() {
+                _selectedOccupation[index] = !_selectedOccupation[index];
+                if (_selectedOccupation[index]) {
+                  _colorOccupation[index] = checkedColor;//.Colors.zarizGradientEnd.withAlpha(10);
+                } else {
+                  _colorOccupation[index] = uncheckedColor;//ZarizTheme.Colors.zarizGradientEnd.withAlpha(240);
+                }
+
+                _bHasChangedUpdate = true;
+                _workerDetails._lOccupationFieldListString = [];
+                for (var i=0; i < _selectedOccupation.length; i++ ) {
+                  if (_selectedOccupation[i]) {
+                      _workerDetails._lOccupationFieldListString.add(_lPossibleOccupation[i]);
+                  }
+
+                }  
+              });
             },
           );
         });
         return gridView;
   }
-  void onProfilePressed(email, password) {
-    _bProfileEnabled = false;
-    // var resFuture = performProfile(email, password);
-    // resFuture.then((res){
-    //     if ((res["success"] == "true") || (res["success"] == true)) {
-    //         showInSnackBar(email + " שלום");
-    //     } else if (res["error"].contains("Authent")) {
-    //         showInSnackBar("שם משתמש או סיסמא אינם רשומים במערכת");
-    //     } else {
-    //         showInSnackBar("הקשר לשרת נכשל, אנא נסה שוב מאוחר יותר");
-    //     }  
-    //     _bProfileEnabled = true;
-    // });
-  }
-  void onSignUpPressed(username, email, password)
-  {
-      _bSignUpEnabled = false;
-      // var resFuture = performSignUp(username, email, password);
-      // resFuture.then((res){
-      //   if ((res["success"] == "true") || (res["success"] == true) ){
-      //       if (res["isNewUser"] == "true") {
-      //           showInSnackBar("משתמש קיים - נכנס");
-      //       } else {
-      //           showInSnackBar(email + " שלום");
-      //           Navigator.push(
-      //             context,
-      //             MaterialPageRoute(builder: (context) => ProfilePage()),
-      //           );
-      //       }
-      //   } else {
-      //       showInSnackBar("ההרשמה נכשלה");
-      //   }
-      //    _bSignUpEnabled = true;
-      // });
-  }
-  final List<Widget> DefaultPages = <Widget>[
-    new ConstrainedBox(
-      constraints: const BoxConstraints.expand(),
-      child: new FlutterLogo(colors: Colors.red),
-    ),
-    new ConstrainedBox(
-      constraints: const BoxConstraints.expand(),
-      child: new FlutterLogo(style: FlutterLogoStyle.stacked, colors: Colors.red),
-    ),
-    new ConstrainedBox(
-      constraints: const BoxConstraints.expand(),
-      child: new FlutterLogo(style: FlutterLogoStyle.horizontal, colors: Colors.red),
-    ),
-  ];
 
   Widget _buildCarousel(BuildContext context) {
-    var c = new CarosuelState(pages : <Widget>[new ConstrainedBox(
-      constraints: const BoxConstraints.expand(),
-      child: _buildWorkerDetails1(context),
-    ),new ConstrainedBox(
+    var c = new CarosuelState(pages : <Widget>[
+      new ConstrainedBox(
       constraints: const BoxConstraints.expand(),
       child: _buildWorkerDetails2(context),
+    ),new ConstrainedBox(
+      constraints: const BoxConstraints.expand(),
+      child: _buildWorkerDetails1(context),
     ),]);
     return c.buildCarousel(context);
   }
@@ -902,176 +1026,11 @@ class _ProfilePageState extends State<ProfilePage>
                     height: 360.0,
                     child: Column(
                       children: <Widget>[
-                        Padding(
-                          padding: EdgeInsets.only(
-                              top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                          child: TextField(
-                            focusNode: myFocusNodeName,
-                            controller: signupNameController,
-                            keyboardType: TextInputType.text,
-                            textCapitalization: TextCapitalization.words,
-                            style: TextStyle(
-                                fontFamily: "WorkSansSemiBold",
-                                fontSize: 16.0,
-                                color: Colors.black),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                FontAwesomeIcons.user,
-                                color: Colors.black,
-                              ),
-                              hintText: "שם",
-                              hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 16.0),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: 250.0,
-                          height: 1.0,
-                          color: Colors.grey[400],
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(
-                              top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                          child: TextField(
-                            focusNode: myFocusNodeEmail,
-                            controller: signupEmailController,
-                            keyboardType: TextInputType.emailAddress,
-                            style: TextStyle(
-                                fontFamily: "WorkSansSemiBold",
-                                fontSize: 16.0,
-                                color: Colors.black),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                FontAwesomeIcons.envelope,
-                                color: Colors.black,
-                              ),
-                              hintText: "דואר אלקטרוני",
-                              hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 16.0),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: 250.0,
-                          height: 1.0,
-                          color: Colors.grey[400],
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(
-                              top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                          child: TextField(
-                            focusNode: myFocusNodePassword,
-                            controller: signupPasswordController,
-                            obscureText: _obscureTextSignup,
-                            style: TextStyle(
-                                fontFamily: "WorkSansSemiBold",
-                                fontSize: 16.0,
-                                color: Colors.black),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                FontAwesomeIcons.lock,
-                                color: Colors.black,
-                              ),
-                              hintText: "סיסמא",
-                              hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 16.0),
-                              suffixIcon: GestureDetector(
-                                onTap: _toggleSignup,
-                                child: Icon(
-                                  FontAwesomeIcons.eye,
-                                  size: 15.0,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: 250.0,
-                          height: 1.0,
-                          color: Colors.grey[400],
-                        ),
-                        Padding(
-                          padding: EdgeInsets.only(
-                              top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                          child: TextField(
-                            controller: signupConfirmPasswordController,
-                            obscureText: _obscureTextSignupConfirm,
-                            style: TextStyle(
-                                fontFamily: "WorkSansSemiBold",
-                                fontSize: 16.0,
-                                color: Colors.black),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                FontAwesomeIcons.lock,
-                                color: Colors.black,
-                              ),
-                              hintText: "אישור סיסמא",
-                              hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 16.0),
-                              suffixIcon: GestureDetector(
-                                onTap: _toggleSignupConfirm,
-                                child: Icon(
-                                  FontAwesomeIcons.eye,
-                                  size: 15.0,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+
+                        
                       ],
                     ),
                   ),
-                ),
-                Container(
-                  margin: EdgeInsets.only(top: 340.0),
-                  decoration: new BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(5.0)),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: Theme.Colors.zarizGradientStart,
-                        offset: Offset(1.0, 6.0),
-                        blurRadius: 20.0,
-                      ),
-                      BoxShadow(
-                        color: Theme.Colors.zarizGradientEnd,
-                        offset: Offset(1.0, 6.0),
-                        blurRadius: 20.0,
-                      ),
-                    ],
-                    gradient: new LinearGradient(
-                        colors: [
-                          Theme.Colors.zarizGradientEnd,
-                          Theme.Colors.zarizGradientStart
-                        ],
-                        begin: const FractionalOffset(0.2, 0.2),
-                        end: const FractionalOffset(1.0, 1.0),
-                        stops: [0.0, 1.0],
-                        tileMode: TileMode.clamp),
-                  ),
-                  child: MaterialButton(
-                      highlightColor: Colors.transparent,
-                      splashColor: Theme.Colors.zarizGradientEnd,
-                      //shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5.0))),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10.0, horizontal: 42.0),
-                        child: Text(
-                          "הרשמה",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 25.0,
-                              fontFamily: "WorkSansBold"),
-                        ),
-                      ),
-                      onPressed:  _bSignUpEnabled ? signupButtonPressed : null,
-                    ),
                 ),
               ],
             ),
@@ -1080,44 +1039,5 @@ class _ProfilePageState extends State<ProfilePage>
       ),
     );
   }
-
-  void signupButtonPressed() {
-    if (signupConfirmPasswordController.text != signupPasswordController.text) {
-        showInSnackBar("הסיסמאות לא תואמות");
-    } else if (signupNameController.text.isEmpty) {
-        showInSnackBar("שכחת לציין את השם");
-    } else if (signupEmailController.text.isEmpty) {
-        showInSnackBar("שכחת לציין את כתובת הדואר האלקטרוני");
-    } else {
-        onSignUpPressed(signupNameController.text, signupEmailController.text, signupPasswordController.text);
-    }
-  }
-
-  void _onSignInButtonPress() {
-    _pageController.animateToPage(0,
-        duration: Duration(milliseconds: 500), curve: Curves.decelerate);
-  }
-
-  void _onSignUpButtonPress() {
-    _pageController?.animateToPage(1,
-        duration: Duration(milliseconds: 500), curve: Curves.decelerate);
-  }
-
-  void _toggleProfile() {
-    setState(() {
-      _obscureTextProfile = !_obscureTextProfile;
-    });
-  }
-
-  void _toggleSignup() {
-    setState(() {
-      _obscureTextSignup = !_obscureTextSignup;
-    });
-  }
-
-  void _toggleSignupConfirm() {
-    setState(() {
-      _obscureTextSignupConfirm = !_obscureTextSignupConfirm;
-    });
-  }
+  
 }

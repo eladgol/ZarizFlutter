@@ -106,18 +106,17 @@ class CarosuelState {
 
 
   Widget buildCarousel(BuildContext context) {
-    return new Scaffold(
-      body: new IconTheme(
-        data: new IconThemeData(color: _kArrowColor),
-        child: new Stack(
+    return new Stack(
           children: <Widget>[
-            new PageView.builder(
+            new SizedBox(
+            height : MediaQuery.of(context).size.height * 0.6,
+            child: new PageView.builder(
               physics: new AlwaysScrollableScrollPhysics(),
               controller: _controller,
               itemBuilder: (BuildContext context, int index) {
                 return pages[index % pages.length];
               },
-            ),
+            )),
             new Positioned(
               bottom: 0.0,
               left: 0.0,
@@ -141,8 +140,6 @@ class CarosuelState {
               ),
             ),
           ],
-        ),
-      ),
     );
   }
 }

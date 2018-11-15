@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:zariz_app/ui/login_page.dart';
-
+//import 'package:flutter/rendering.dart'; 
 void main()
 {
+  //debugPaintSizeEnabled=true;
   runApp(new MyApp());
   WidgetsBinding.instance
         .addPostFrameCallback((_) {
