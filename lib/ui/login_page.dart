@@ -8,11 +8,6 @@ import 'package:zariz_app/ui/profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 //import 'package:google_sign_in/google_sign_in.dart';
-import 'dart:async';
-import 'dart:convert' show json;
-
-import "package:http/http.dart" as http;
-import 'package:flutter/material.dart';
 // import 'package:google_sign_in/google_sign_in.dart';
 
 // Copyright 2017 The Chromium Authors. All rights reserved.
@@ -207,15 +202,13 @@ class _LoginPageState extends State<LoginPage>
   bool _bLoginEnabled = true;
   bool _bSignUpEnabled = true;
   
-  ChoiceLogin _selectedChoice = choices[0];
-
+  
   TextEditingController _controllerIP = new TextEditingController(text: sDefaultIP);
   TextEditingController _controllerPort = new TextEditingController(text: sDefaultPORT.toString());
-  bool _isHttps = false;
+  
   void _select(ChoiceLogin choice) {
     // Causes the app to rebuild with the new _selectedChoice.
     setState(() {
-      _selectedChoice = choice;
       if (choice.title == "IP") {
           showDialog(
       context: context,
@@ -351,7 +344,7 @@ class _LoginPageState extends State<LoginPage>
                 _progressBarActive ? CircularProgressIndicator():Container(),
                 Padding(
                   padding: EdgeInsets.only(top: 20.0),
-                  child: _buildMenuBar(context),
+                  child: _buildSwitchBar(context),
                 ),
                 Expanded(
                   flex: 2,
@@ -438,7 +431,7 @@ class _LoginPageState extends State<LoginPage>
     ));
   }
 
-  Widget _buildMenuBar(BuildContext context) {
+  Widget _buildSwitchBar(BuildContext context) {
     return Container(
       width: 300.0,
       height: 50.0,
@@ -485,7 +478,7 @@ class _LoginPageState extends State<LoginPage>
       ),
     );
   }
-  bool _bShowGoogle = false;
+ 
   Widget _buildSignIn(BuildContext context) {
     return new Directionality(
       textDirection: TextDirection.rtl,
@@ -707,7 +700,7 @@ class _LoginPageState extends State<LoginPage>
                   child: GestureDetector(
                     onTap: ((){
                         setState(() {
-                               _bShowGoogle = true;                  
+                                                
                                                 });
                     }),
                     child: Container(

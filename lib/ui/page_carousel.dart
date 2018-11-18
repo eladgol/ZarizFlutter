@@ -13,7 +13,7 @@ class DotsIndicator extends AnimatedWidget {
     this.controller,
     this.itemCount,
     this.onPageSelected,
-    this.color: Colors.white,
+    this.color: Theme.Colors.zarizGradientEnd,
   }) : super(listenable: controller);
 
   /// The PageController that this DotsIndicator is representing.
@@ -28,7 +28,7 @@ class DotsIndicator extends AnimatedWidget {
   /// The color of the dots.
   ///
   /// Defaults to `Colors.white`.
-  Color color;
+  final Color color;
 
   // The base size of the dots
   static const double _kDotSize = 8.0;
@@ -66,28 +66,12 @@ class DotsIndicator extends AnimatedWidget {
   }
 
   Widget build(BuildContext context) {
-    color = Theme.Colors.zarizGradientEnd;
     return new Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: new List<Widget>.generate(itemCount, _buildDot),
     );
   }
 }
-
-  final List<Widget> DefaultPages = <Widget>[
-    new ConstrainedBox(
-      constraints: const BoxConstraints.expand(),
-      child: new FlutterLogo(colors: Colors.blue),
-    ),
-    new ConstrainedBox(
-      constraints: const BoxConstraints.expand(),
-      child: new FlutterLogo(style: FlutterLogoStyle.stacked, colors: Colors.amber),
-    ),
-    new ConstrainedBox(
-      constraints: const BoxConstraints.expand(),
-      child: new FlutterLogo(style: FlutterLogoStyle.horizontal, colors: Colors.yellow),
-    ),
-  ];
 
 class CarosuelState {
   List<Widget> pages;
@@ -99,11 +83,6 @@ class CarosuelState {
   static const _kDuration = const Duration(milliseconds: 300);
 
   static const _kCurve = Curves.ease;
-
-  final _kArrowColor = Colors.black.withOpacity(0.8);
-
-
-
 
   Widget buildCarousel(BuildContext context) {
     return new Stack(

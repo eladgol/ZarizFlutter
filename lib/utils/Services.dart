@@ -1,9 +1,9 @@
-import 'package:http/http.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 
 
 const sDefaultIP = "192.168.1.13";
@@ -14,21 +14,26 @@ typedef Future<bool> HttpAuthenticationCallback(
 
 class Services {
 
-  String IP = sDefaultIP;
-  int PORT = sDefaultPORT;
+  String ip = sDefaultIP;
+  int port = sDefaultPORT;
 
-  void setIP(String __IP, int __PORT){
-    IP = __IP;
-    PORT = __PORT;
+  void setIP(String __ip, int __port){
+    ip = __ip;
+    port = __port;
   }
   Future<Map<String, dynamic>> updateInputForm(Map<String, dynamic> fields) async {
     var res = postServer("/updateAllInputsForm/", fields);
         
     res.then((jResponse) {
           if (jResponse["success"] == true) {
+            if (jResponse.containsKey("Error") && jResponse["Error"] == "no change") {
+
+            } else {
               var jResponse2 = new Map<String, dynamic>.from(jResponse);
-              var j = jResponse2.remove("success");
+              jResponse2.remove("success");
+              // toDo: update the occupation list and picture 
               Singleton().persistentState.setString("WorkerDetails", jResponse2.toString());
+            }
           }
     });
 
@@ -40,7 +45,7 @@ class Services {
     res.then((jResponse) {
           if (jResponse["success"] == true) {
               var jResponse2 = new Map<String, String>.from(jResponse);
-              var j = jResponse2.remove("success");
+              jResponse2.remove("success");
               Singleton().persistentState.setString("WorkerOccupation", jResponse2.toString());
           }
     });
@@ -53,7 +58,7 @@ class Services {
     res.then((jResponse) {
           if (jResponse["success"] == true) {
               var jResponse2 = new Map<String, String>.from(jResponse);
-              var j = jResponse2.remove("success");
+              jResponse2.remove("success");
               Singleton().persistentState.setString("details", jResponse.toString());
           }
     });
@@ -61,7 +66,7 @@ class Services {
     return res;
   }
   Future<Map<String, dynamic>> performLogin(username, password) async {
-    print("performing login for $username, $password for ${(PORT==443)?'https':'http'}://$IP:$PORT/localLogin");
+    print("performing login for $username, $password for ${(port==443)?'https':'http'}://$ip:$port/localLogin");
     var res = postServer("/localLogin/", {"localPassword" : password,
         "localUser": username}, false);
         
@@ -90,38 +95,17 @@ class Services {
     return res;
   }
 
-
-  HttpAuthenticationCallback _basicAuthenticationCallback(
-          HttpClient client, HttpClientCredentials credentials) =>
-      (Uri uri, String scheme, String realm) {
-        client.addCredentials(uri, realm, credentials);
-        return new Future.value(true);
-      };
-
-  BaseClient createBasicAuthenticationIoHttpClient(
-      String userName, String password) {
-    final credentials = new HttpClientBasicCredentials(userName, password);
-
-    final client = new HttpClient();
-    client.authenticate = _basicAuthenticationCallback(client, credentials);
-    return new IOClient(client);
-  }
-
   Future<Map<String, dynamic>>  postServer(relativeUrl, bodyMap, [bAddHeader=true]) async
   {
-    var basicUrl = IP + ":" + PORT.toString();
+    var basicUrl = ip + ":" + port.toString();
     var url = "http://" + basicUrl + relativeUrl;
     var uri = new Uri.http(basicUrl, "");
-    if (PORT == 443) {
+    if (port == 443) {
       url = "https://" + basicUrl + relativeUrl;
       uri = new Uri.https(basicUrl, "");
     }
-    var client = new HttpClient();
-    client.badCertificateCallback = (X509Certificate cert, String host, int port){
-      print(host);
-      return true;
-    };
-    var http = new IOClient(client);
+
+   
     var response;
     try {
         if (bAddHeader) {
@@ -129,7 +113,6 @@ class Services {
             var password = Singleton().persistentState.getString("password");
 
             if ( (username != null) && (password != null)) {
-                String basicAuth = 'Basic ' + base64Encode(utf8.encode('$username:$password'));
                 var lCookies = Singleton().cj.loadForRequest(uri);
                 var headers = new Map<String,String>();//{HttpHeaders.authorizationHeader: basicAuth};
                 var sCookie = "";
@@ -166,7 +149,7 @@ class Services {
       Singleton().cj.saveFromResponse(uri, lCookies);
     }
 
-    var t = Singleton().cj.loadForRequest(uri);
+    Singleton().cj.loadForRequest(uri);
     var jResponse;
     if (response.statusCode >= 400)
     {
