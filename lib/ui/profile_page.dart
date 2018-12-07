@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
-
 import 'package:utf/utf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,9 +13,8 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:google_maps_webservice/places.dart';
 import 'package:flutter/cupertino.dart';
-
 import 'package:zariz_app/ui/page_carousel.dart';
-import 'package:convert/convert.dart';
+//import 'package:convert/convert.dart';
 
 import 'package:location/location.dart' as LocationGPS;
 
@@ -27,7 +25,51 @@ class CurrentLocation {
   double lat = 0.0;
   double lng = 0.0;
 }
+class BossDetails{
+    String _firstName;
+    String _lastName;
+    String _buisnessName;
+    
+    List<String> _lOccupationFieldListString;
+    int _userID;
+    String _photoAGCSPath;
 
+    String _place;
+    double _lat;
+    double _lng;
+    Map<String, String> toJSON() => 
+    {
+      'firstName'     : _firstName,
+      'lastName'      : _lastName,
+      'buisnessName'  : _buisnessName.toString(),
+      'userID'        : _userID.toString(),
+      'photoAGCSPath' : _photoAGCSPath,
+      'place'         : _place,
+      'lat'           : _lat.toString(),
+      'lng'           : _lng.toString()
+    };
+  }
+class JobsDetails{
+    int _jobId;
+    String _discription;
+    List<String> _lOccupationFieldListString;
+    double _wage;
+    String _place;
+    double _lat;
+    double _lng;
+    int nWorkers;
+
+    Map<String, String> toJSON() => 
+    {
+      'discription'     : _discription,
+      'wage'          : _wage.toString(),
+      'jobID'        : _jobId.toString(),
+      'place'         : _place,
+      'lat'           : _lat.toString(),
+      'lng'           : _lng.toString(),
+      'nWorkers'      : nWorkers.toString()
+    };
+}
 class WorkerDetails{
     String _firstName;
     String _lastName;
@@ -69,18 +111,18 @@ List<String> fixEncoding(String sIn) {
       var chars = e.split(new RegExp(r"\\| ")).skip(1).toList();
       var sOut = "";
       chars.forEach((c) {
-        if ((c != " u'") && (!(c as String).contains("["))) {    
+        if ((c != " u'") && (!c.contains("["))) {    
           if (c == "")
             sOut += " ";
           else
-            sOut += decodeUtf16(hex.decode(c));
+            sOut += decodeUtf16([int.parse(c.substring(0,2), radix:16), int.parse(c.substring(2,4), radix:16)]);
+            //sOut += decodeUtf16(hex.decode(c));
         }
       });
       lOut.add(sOut);
   });   
   return lOut;
 }
-
 List<AppBarChoice> choices = <AppBarChoice>[
   AppBarChoice(title: 'update', icon: Icons.check),
   AppBarChoice(title: 'logoff', icon: FontAwesomeIcons.signOutAlt),
@@ -106,38 +148,45 @@ class _ProfilePageState extends State<ProfilePage>
   final FocusNode myFocusNodeWage = FocusNode();
   final FocusNode myFocusNodePlace = FocusNode();
   final FocusNode myFocusNodeRadius = FocusNode();
+
+
+  final FocusNode myFocusNodeBossFirstName    = FocusNode();
+  final FocusNode myFocusNodeBossLastName     = FocusNode();
+  final FocusNode myFocusNodeBossBuisnessName = FocusNode();
+  final FocusNode myFocusNodeBossPlace        = FocusNode();
+
   
-  bool _obscureTextProfile = true;
-  bool _obscureTextSignup = true;
-  bool _obscureTextSignupConfirm = true;
-  
-  bool _bHasChangedUpdate = false;
+  bool _bWorkerIsUpdated = true;
   PageController _pageController;
 
   Color left = Colors.black;
   Color right = Colors.white;
 
-  bool _bProfileEnabled = true;
-  bool _bSignUpEnabled = true;
-  AppBarChoice _selectedChoice = choices[0];
-
   WorkerDetails _workerDetails;
+  BossDetails _bossDetails;
+  List<JobsDetails> _lJobs = [JobsDetails().._discription="הוסף עבודה"];
   Services _services = new Services();
 
-  TextEditingController _controllerFirstName = new TextEditingController();
-  TextEditingController _controllerLastName = new TextEditingController();
-  TextEditingController _controllerWage = new TextEditingController();
-  TextEditingController _controllerPlace = new TextEditingController();
-  TextEditingController _controllerRadius = new TextEditingController();
+  TextEditingController _controllerWorkerFirstName = new TextEditingController();
+  TextEditingController _controllerWorkerLastName = new TextEditingController();
+  TextEditingController _controllerWorkerWage = new TextEditingController();
+  TextEditingController _controllerWorkerPlace = new TextEditingController();
+  TextEditingController _controllerWorkerRadius = new TextEditingController();
 
-  List<DropdownMenuItem<String>> _lPlacesDropDownList =[new DropdownMenuItem<String>(
+  TextEditingController _controllerBossPlace = new TextEditingController();
+  TextEditingController _controllerBossBuisnessName = new TextEditingController();
+
+
+  List<DropdownMenuItem<String>> _lPlacesWorkerDropDownList =[new DropdownMenuItem<String>(
                                           value: "מאור",
                                           child: new Text("מאור"),
-                                      )];
-                                      
-  List<Prediction> _lPlacesList =[];                         
-
+                                      )];                    
+  List<DropdownMenuItem<String>> _lPlacesBossDropDownList =[new DropdownMenuItem<String>(
+                                          value: "מאור",
+                                          child: new Text("מאור"),
+                                      )];     
   String _imageFileBase64Data = "";
+  bool _bUpdatingDetails = false;
 
   static final List<String> _lDefaultPossibleOccupation = ["א","ב","ג","ד","ה","ו","ז","ח","ט","י","כ","ל","מ","נ","ס","ע","פ","צ","ק","ר","ש","ת"];
   List<String> _lPossibleOccupation = _lDefaultPossibleOccupation;
@@ -146,11 +195,29 @@ class _ProfilePageState extends State<ProfilePage>
   void _select(AppBarChoice choice) {
     // Causes the app to rebuild with the new _selectedChoice.
     setState(() {
-      _selectedChoice = choice;
+      _bUpdatingDetails = true;
       if (choice.title == "update") {
           print(_workerDetails.toString());
           _workerDetails._photoAGCSPath = _imageFileBase64Data;
-          _services.updateInputForm(_workerDetails.toJSON());
+          _services.updateInputForm(_workerDetails.toJSON()).then((res) {
+              if (res.containsKey("success") && ((res["success"] == "true") || (res["success"] == true))) {
+                setState(() {
+                  _bWorkerIsUpdated = true;
+                  _bUpdatingDetails = false;
+                });
+                  
+              }
+          });
+          _services.updateBossInputForm(_bossDetails.toJSON()).then((res) {
+              if (res.containsKey("success") && ((res["success"] == "true") || (res["success"] == true))) {
+                setState(() {
+                  _bWorkerIsUpdated = true;
+                  _bUpdatingDetails = false;
+                });
+                  
+              }
+          });
+          
       }
       if (choice.title == "debug") {
           print(_workerDetails.toString());
@@ -163,14 +230,20 @@ class _ProfilePageState extends State<ProfilePage>
   static final String kGoogleApiKey = "AIzaSyCKbtYyIOqIe1mmCIPIp_wezViTi2JHiC0";
   GoogleMapsPlaces _placesAPI = new GoogleMapsPlaces(kGoogleApiKey);
 
-  void setPlaceLatLng(String sPlace) {
+  void setPlaceLatLng(String sPlace, bool bIsBoss) {
     _placesAPI.searchByText(sPlace).then((a) {
        if (a.results.length > 0) {
         setState(() {
-          _workerDetails._lat = a.results[0].geometry.location.lat;
-          _workerDetails._lng = a.results[0].geometry.location.lng;
-          _workerDetails._place = a.results[0].name;
-          _bHasChangedUpdate = true;
+          if (bIsBoss) {
+            _bossDetails._lat = a.results[0].geometry.location.lat;
+            _bossDetails._lng = a.results[0].geometry.location.lng;
+            _bossDetails._place = a.results[0].name;          
+          } else {
+            _workerDetails._lat = a.results[0].geometry.location.lat;
+            _workerDetails._lng = a.results[0].geometry.location.lng;
+            _workerDetails._place = a.results[0].name; 
+          }
+          _bWorkerIsUpdated = false;
         });
        }
     });
@@ -236,8 +309,6 @@ class _ProfilePageState extends State<ProfilePage>
   static double hDefault = 775.0;
   double _heightImage = hDefault * 0.15;
   double _heightSwitch = hDefault * 0.05;
-  double _heightCard = hDefault * 0.5;
-  double _heightButton = hDefault * 0.1;
 
   CurrentLocation _currLocation = new CurrentLocation();
  
@@ -258,19 +329,48 @@ class _ProfilePageState extends State<ProfilePage>
   //             width: MediaQuery.of(context).size.width,
   //             height:  MediaQuery.of(context).size.height * 0.9,
   //             child: new SingleChildScrollView(
-  //               child: _buildCarousel(context),
+  //               child: _buildWorkerCarousel(context),
   //               )
   //           )
   //       )
   //     )
   //   );
   // }
+  
+  Decoration decorationWorker(BuildContext context) {
+    return new BoxDecoration(
+          gradient: new LinearGradient(
+          colors: [
+            ZarizTheme.Colors.zarizGradientStart1,
+            ZarizTheme.Colors.zarizGradientEnd
+          ],
+          begin: const FractionalOffset(0.0, 0.0),
+          end: const FractionalOffset(1.0, 1.0),
+          stops: [0.0, 1.0],
+          tileMode: TileMode.clamp),
+    );
+  }
+  Decoration decorationBoss(BuildContext context) {
+    return new BoxDecoration(
+          gradient: new LinearGradient(
+          colors: [
+            ZarizTheme.Colors.zarizGradientStart2,
+            ZarizTheme.Colors.zarizGradientEnd
+          ],
+          begin: const FractionalOffset(0.0, 0.0),
+          end: const FractionalOffset(1.0, 1.0),
+          stops: [0.0, 1.0],
+          tileMode: TileMode.clamp),
+    );
+  }
+  String _profileTitleBoss = "פרופיל מעביד";
+  String _profileTitleWorker = "פרופיל עובד";
   Widget build(BuildContext context) {
     return new Directionality(
       textDirection: TextDirection.rtl,
         child : new Scaffold(
         appBar: AppBar(
-        title: Text('פרופיל'),
+        title: Text(_bBossMode?_profileTitleBoss:_profileTitleWorker),
         actions: <Widget>[
               IconButton(
                 icon: new Icon(Icons.check),
@@ -278,7 +378,7 @@ class _ProfilePageState extends State<ProfilePage>
                   _select(choices[0]);
                   
                 },
-                color: _bHasChangedUpdate ? Colors.red: Colors.green,
+                color: _bWorkerIsUpdated ? Colors.green: Colors.red,
               ),
               // action button
               IconButton(
@@ -318,22 +418,11 @@ class _ProfilePageState extends State<ProfilePage>
                   height: MediaQuery.of(context).size.height >= hDefault
                       ? MediaQuery.of(context).size.height
                       : hDefault,
-                  decoration: new BoxDecoration(
-                    gradient: new LinearGradient(
-                        colors: [
-                          ZarizTheme.Colors.zarizGradientStart,
-                          ZarizTheme.Colors.zarizGradientEnd
-                        ],
-                        begin: const FractionalOffset(0.0, 0.0),
-                        end: const FractionalOffset(1.0, 1.0),
-                        stops: [0.0, 1.0],
-                        tileMode: TileMode.clamp),
-                  ),
+                  decoration: _bBossMode?  decorationBoss(context) : decorationWorker(context),
                   child: Column(
                     children: <Widget>[
-                      
                       Padding(
-                        padding: EdgeInsets.only(top: 1.0),
+                        padding: EdgeInsets.only(top: 8.0),
                         child: new FlatButton(
                           onPressed: onImagePressed,
                           child:  new ClipRRect(
@@ -345,8 +434,9 @@ class _ProfilePageState extends State<ProfilePage>
                       ),
                       Padding(
                         padding: EdgeInsets.only(top: 5.0, bottom: 5.0),
-                        child: _buildMenuBar(context),
+                        child: _buildSwitchBar(context),
                       ),
+                      (_bIsLoadingPlaces || _bUpdatingDetails) ? new CircularProgressIndicator(backgroundColor: ZarizTheme.Colors.zarizGradientStart):new Container(),
                       
                       Flexible(
                         flex: 2,
@@ -368,12 +458,12 @@ class _ProfilePageState extends State<ProfilePage>
                           children: <Widget>[
                             new SingleChildScrollView(
                               //constraints: const BoxConstraints.expand(),
-                              child: _buildCarousel(context),
+                              child: _buildWorkerCarousel(context),
                               primary: false,
                             ),
-                            new ConstrainedBox(
-                              constraints: const BoxConstraints.expand(),
-                              child: _buildBossDetails(context),
+                            new SingleChildScrollView(
+                              child: _buildBossCarousel(context),
+                              primary: false,
                             ),
                           ],
                         ),
@@ -401,6 +491,10 @@ class _ProfilePageState extends State<ProfilePage>
     myFocusNodeWage.dispose();
     myFocusNodePlace.dispose();
     myFocusNodeRadius.dispose();
+    myFocusNodeBossFirstName.dispose();
+    myFocusNodeBossLastName.dispose();     
+    myFocusNodeBossBuisnessName.dispose(); 
+    myFocusNodeBossPlace.dispose();
     _pageController?.dispose();
     super.dispose();
   }
@@ -409,61 +503,62 @@ class _ProfilePageState extends State<ProfilePage>
   void initState() {
     super.initState();
     setState(() {
-          _placesMenuVisible = false;
+         
         });
 
     var resFuture = _services.getFieldDetails();
-    resFuture.then((res){
-        if ((res["success"] == "true") || (res["success"] == true)) {
-          _workerDetails = new WorkerDetails();
-          _workerDetails._firstName = res["firstName"];
-          _workerDetails._lastName = res["lastName"];
-          _workerDetails._lat = res["lat"];
-          _workerDetails._lng = res["lng"];
-          _workerDetails._photoAGCSPath = res["photoAGCSPath"];
-          _workerDetails._radius = res["radius"];
-          _workerDetails._wage = res["wage"];
-          _workerDetails._place = res["place"];
-          
-          _controllerFirstName.text = _workerDetails._firstName;
-          _controllerLastName.text  = _workerDetails._lastName;
-          _controllerPlace.text     = _workerDetails._place;
-          _controllerWage.text      =  _workerDetails._wage.toString();
-          _controllerRadius.text    = _workerDetails._radius.toString();
+    resFuture.then((res) {
+      if ((res["success"] == "true") || (res["success"] == true)) {
+        _workerDetails = new WorkerDetails();
+        _workerDetails._firstName = res["firstName"];
+        _workerDetails._lastName = res["lastName"];
+        _workerDetails._lat = res["lat"];
+        _workerDetails._lng = res["lng"];
+        _workerDetails._photoAGCSPath = res["photoAGCSPath"];
+        _workerDetails._radius = res["radius"];
+        _workerDetails._wage = res["wage"];
+        _workerDetails._place = res["place"];
+        
+        _controllerWorkerFirstName.text = _workerDetails._firstName;
+        _controllerWorkerLastName.text  = _workerDetails._lastName;
+        _controllerWorkerPlace.text     = _workerDetails._place;
+        _controllerWorkerWage.text      =  _workerDetails._wage.toString();
+        _controllerWorkerRadius.text    = _workerDetails._radius.toString();
 
 
-          _controllerFirstName.addListener((){
-            setState(() {
-              _workerDetails._firstName = _controllerFirstName.text;
-              _bHasChangedUpdate = true;
-            });
-          }); 
-          _controllerLastName.addListener((){
-            setState(() {
-              _workerDetails._lastName = _controllerLastName.text;
-              _bHasChangedUpdate = true;
-            });
+        _controllerWorkerFirstName.addListener((){
+          setState(() {
+            _workerDetails._firstName = _controllerWorkerFirstName.text;
+            _bWorkerIsUpdated = false;
           });
-          _controllerWage.addListener((){
-            setState(() {
-              _workerDetails._wage = double.parse(_controllerWage.text) ;
-              _bHasChangedUpdate = true;
-            });
+        }); 
+        _controllerWorkerLastName.addListener((){
+          setState(() {
+            _workerDetails._lastName = _controllerWorkerLastName.text;
+            _bWorkerIsUpdated = false;
           });
-          _controllerRadius.addListener((){
-            setState(() {
-              _workerDetails._radius = double.parse(_controllerRadius.text) ;
-              _bHasChangedUpdate = true;
-            });
+        });
+        _controllerWorkerWage.addListener((){
+          setState(() {
+            _workerDetails._wage = double.parse(_controllerWorkerWage.text) ;
+            _bWorkerIsUpdated = false;
           });
-          _controllerPlace.addListener((){
-            _textForAutoCompleteChanged();
-            setState(() {
-              _bHasChangedUpdate = true;
-            });
-          });            
-        }
+        });
+        _controllerWorkerRadius.addListener((){
+          setState(() {
+            _workerDetails._radius = double.parse(_controllerWorkerRadius.text) ;
+            _bWorkerIsUpdated = false;
+          });
+        });
+        _controllerWorkerPlace.addListener((){
+          _textForAutoCompleteWorkerChanged();
+          setState(() {
+            _bWorkerIsUpdated = false;
+          });
+        });            
+      }
     });
+    
     var resFuture2 = _services.getOccupationDetails();
     resFuture2.then((res){
         if ((res["success"] == "true") || (res["success"] == true)) {
@@ -484,6 +579,54 @@ class _ProfilePageState extends State<ProfilePage>
           });
         }
     });
+    
+    var resFutureBoss = _services.getBossFieldDetails();
+    resFutureBoss.then((res){
+        if ((res["success"] == "true") || (res["success"] == true)) {
+          _bossDetails = new BossDetails();
+
+          _bossDetails._firstName = res["firstName"];
+          _bossDetails._lastName = res["lastName"];
+          _bossDetails._buisnessName = res["buisnessName"];
+          _bossDetails._lat = res["lat"];
+          _bossDetails._lng = res["lng"];
+          _bossDetails._photoAGCSPath = res["photoAGCSPath"];
+          _bossDetails._place = res["place"];
+          
+          _controllerWorkerFirstName.text = _bossDetails._firstName;
+          _controllerWorkerLastName.text  = _bossDetails._lastName;
+          _controllerBossBuisnessName.text  = _bossDetails._buisnessName;
+          
+          _controllerBossPlace.text     = _bossDetails._place;
+          
+
+          _controllerWorkerFirstName.addListener((){
+            setState(() {
+              _bossDetails._firstName = _controllerWorkerFirstName.text;
+              _bWorkerIsUpdated = false;
+            });
+          }); 
+          _controllerWorkerLastName.addListener((){
+            setState(() {
+              _bossDetails._lastName = _controllerWorkerLastName.text;
+              _bWorkerIsUpdated = false;
+            });
+          });
+           _controllerBossBuisnessName.addListener((){
+            setState(() {
+              _bossDetails._buisnessName = _controllerBossBuisnessName.text;
+              _bWorkerIsUpdated = false;
+            });
+          });
+          _controllerBossPlace.addListener((){
+            _textForAutoCompleteBossChanged();
+            setState(() {
+              _bWorkerIsUpdated = false;
+            });
+          });            
+        }
+    });
+    
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -493,13 +636,11 @@ class _ProfilePageState extends State<ProfilePage>
 
     final  prefs = SharedPreferences.getInstance();
     prefs.then((o){         
-          retreivePersistentState(o);
-          setState(() {
-                      
-                    });
+      retreivePersistentState(o);
+      setState(() {
+                  
+      });
     });
-    var currentLocation = <String, double>{};
-
     var location = new LocationGPS.Location();
 
     // Platform messages may fail, so we use a try/catch PlatformException.
@@ -518,23 +659,21 @@ class _ProfilePageState extends State<ProfilePage>
                 _currLocation.name = v.results[0].name;
                 _currLocation.lat = v.results[0].geometry.location.lat;
                 _currLocation.lng = v.results[0].geometry.location.lng;
-                _lPlacesDropDownList =[new DropdownMenuItem<String>(
+                _lPlacesWorkerDropDownList =[new DropdownMenuItem<String>(
                                           value: _currLocation.name ,
                                           child: new Text(_currLocation.name ),
                                       )];  
-
+                _lPlacesBossDropDownList =[new DropdownMenuItem<String>(
+                                          value: _currLocation.name ,
+                                          child: new Text(_currLocation.name ),
+                                      )];  
               });
             }
           });
       }).catchError((e) {
-          print(e.toString());
-        }
-      );
-
-      
-
+        print(e.toString());
+      });
     } catch (e){
-      currentLocation = null;
     }
     
     WidgetsBinding.instance
@@ -546,8 +685,7 @@ class _ProfilePageState extends State<ProfilePage>
           
           _heightImage = h * 0.15;
           _heightSwitch = h * 0.05;
-          _heightCard = h * 0.5;
-          _heightButton = h * 0.05;
+
           });
           String fileName = Singleton().persistentState.getString('profilePic');
           
@@ -559,27 +697,24 @@ class _ProfilePageState extends State<ProfilePage>
           
         });
   }
-  _textForAutoCompleteChanged() {
-    
-    String t = "${_controllerPlace.text}";
+  _textForAutoCompleteChanged(TextEditingController controller, List<DropdownMenuItem<String>> l) {
+    String t = "${controller.text}";
     if ((t.length > 2) && (t.length > _tLength)) {
         setState(() {
-          _placesMenuVisible = true;
           _bIsLoadingPlaces = true;
         });
         Location nearL = new Location(_currLocation.lat, _currLocation.lng);
         _placesAPI.queryAutocomplete(t, location: nearL, radius: 300000.0).then((res){   
-           setState(() { 
-            _lPlacesDropDownList.clear();
-           });
+          setState(() { 
+            l.clear();
+          });
           for (var i=0; i < res.predictions.length; i++ ) {
             setState(() {
-            _lPlacesDropDownList.add(new DropdownMenuItem<String>(
-                                          value: res.predictions[i].description,
-                                          child: new Text(res.predictions[i].description),
-                                      ));
-            });
-            
+              l.add(new DropdownMenuItem<String>(
+                  value: res.predictions[i].description,
+                  child: new Text(res.predictions[i].description),
+              ));
+            });    
           }
           setState(() 
           {
@@ -591,12 +726,16 @@ class _ProfilePageState extends State<ProfilePage>
         
     } else {
         setState(() {
-           _placesMenuVisible = false;       
-           _bIsLoadingPlaces = false;
+          _bIsLoadingPlaces = false;
         });
     }
     _tLength = t.length;
-
+  }
+  _textForAutoCompleteBossChanged() {
+    _textForAutoCompleteChanged(_controllerBossPlace, _lPlacesBossDropDownList);
+  }
+  _textForAutoCompleteWorkerChanged() {
+    _textForAutoCompleteChanged(_controllerWorkerPlace, _lPlacesWorkerDropDownList);
   }
 
   void showInSnackBar(String value) {
@@ -615,8 +754,8 @@ class _ProfilePageState extends State<ProfilePage>
       duration: Duration(seconds: 3),
     ));
   }
-  bool _placesMenuVisible = false;
-  Widget _buildMenuBar(BuildContext context) {
+
+  Widget _buildSwitchBar(BuildContext context) {
     var widthSwitch = _heightSwitch * 10.0;
     return Container(
       width: widthSwitch,
@@ -638,7 +777,7 @@ class _ProfilePageState extends State<ProfilePage>
                 child: Text(
                   "עובד",
                   style: TextStyle(
-                      color: left,
+                      color: right,
                       fontSize: 16.0,
                       fontFamily: "WorkSansSemiBold"),
                 ),
@@ -653,7 +792,7 @@ class _ProfilePageState extends State<ProfilePage>
                 child: Text(
                   "מעביד",
                   style: TextStyle(
-                      color: right,
+                      color: left,
                       fontSize: 16.0,
                       fontFamily: "WorkSansSemiBold"),
                 ),
@@ -664,255 +803,155 @@ class _ProfilePageState extends State<ProfilePage>
       ),
     );
   }
-
+  bool _bBossMode = false;
   void _onWorkerButtonPress() {
+    setState((){
+      _bBossMode = false;
+    });
     _pageController.animateToPage(0,
         duration: Duration(milliseconds: 500), curve: Curves.decelerate);
   }
   bool _bIsLoadingPlaces = false;
   void _onBossButtonPress() {
+    setState((){
+      _bBossMode = true;
+    });
     _pageController?.animateToPage(1,
         duration: Duration(milliseconds: 500), curve: Curves.decelerate);
+  }
+  Widget _createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData, {keyboardType=TextInputType.text, maxLines = 1}) {
+    return new Padding(
+      padding: EdgeInsets.only(
+          top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+      child: TextField(
+        focusNode: focusNode,
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        style: TextStyle(
+            fontFamily: "WorkSansSemiBold",
+            fontSize: 16.0,
+            color: Colors.black),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          icon: Icon(
+            iconData,
+            size: 22.0,
+            color: Colors.black87,
+          ),
+          hintText: hintText,
+          hintStyle: TextStyle(
+              fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+          
+        ),
+      ),
+    );
   }
   Widget _buildWorkerDetails1(BuildContext context) {
       return new Directionality(
         textDirection: TextDirection.rtl,
         child : new Container(
           decoration: new BoxDecoration(
-                  gradient: new LinearGradient(
-                      colors: [
-                        ZarizTheme.Colors.zarizGradientStart,
-                        ZarizTheme.Colors.zarizGradientEnd
-                      ],
-                      begin: const FractionalOffset(0.0, 0.0),
-                      end: const FractionalOffset(1.0, 1.0),
-                      stops: [0.0, 1.0],
-                      tileMode: TileMode.clamp),
-                ),
-          padding: EdgeInsets.only(top: 23.0),
-          child: Column(
-            children: <Widget>[
-              Stack(
-                alignment: Alignment.topCenter,
-                overflow: Overflow.visible,
-                children: <Widget>[
-                  Card(
-                    elevation: 2.0,
-                    color: Colors.white54,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    child: Container(
-                      //width: MediaQuery.of(context).size.width * 5 / 6,
-                      //height: MediaQuery.of(context).size.height * 2,
-                      child: new Column( children: <Widget>[
-                          Padding(
-                            padding: EdgeInsets.only(
-                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                            child: 
-                            new Row(
-                              children:<Widget>
-                              [ 
-                                new Flexible(child: TextField(
-                                focusNode: myFocusNodeFirstName,
-                                controller: _controllerFirstName,
-                                keyboardType: TextInputType.emailAddress,
-                                
-                                style: TextStyle(
-                                  fontFamily: "WorkSansSemiBold",
-                                  fontSize: 16.0,
-                                  color: Colors.black),
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                    icon: Icon(
-                                      FontAwesomeIcons.userAlt,
-                                      color: Colors.black87,
-                                      size: 22.0,
-                                    ),
-                                    hintText: "פרטי",
-                                    hintStyle: TextStyle(
-                                        fontFamily: "WorkSansSemiBold", fontSize: 17.0
-                                    ),
-                                  ),
-                                ),
-                                ),
-                                new Flexible(
-                                child: TextField(
-                                  focusNode: myFocusNodeLastName,
-                                  controller: _controllerLastName,
-                                  keyboardType: TextInputType.emailAddress,
-                                
-                                  style: TextStyle(
-                                    fontFamily: "WorkSansSemiBold",
-                                    fontSize: 16.0,
-                                    color: Colors.black
-                                  ),
-                                  decoration: InputDecoration(
-                                    border: InputBorder.none,
-                                    icon: Icon(
-                                      FontAwesomeIcons.users,
-                                      color: Colors.black87,
-                                      size: 22.0,
-                                    ),
-                                    hintText: "משפחה",
-                                    hintStyle: TextStyle(
-                                    fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-                                  ),
-                                ),
-                              ),
-                              ]
-                            ),
-                          ),
-                          Container(
-                            width: 250.0,
-                            height: 1.0,
-                            color: Colors.grey[400],
-                          ),
-
-                          
-                          //_placesMenuVisible ?
-                           
-                          new Row(
-                            children:<Widget>
-                            [ 
-                              new Flexible(
-                                child: Padding(
-                                  padding: EdgeInsets.only(
-                                      top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                                  child: TextField(
-                                    focusNode: myFocusNodePlace,
-                                    controller: _controllerPlace,
-                                    keyboardType: TextInputType.text,
-                                    style: TextStyle(
-                                        fontFamily: "WorkSansSemiBold",
-                                        fontSize: 16.0,
-                                        color: Colors.black),
-                                    decoration: InputDecoration(
-                                      border: InputBorder.none,
-                                      icon: Icon(
-                                        FontAwesomeIcons.mapMarker,
-                                        size: 22.0,
-                                        color: Colors.black87,
-                                      ),
-                                      hintText: "מקום",
-                                      hintStyle: TextStyle(
-                                          fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-                                      
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              _bIsLoadingPlaces ? new CircularProgressIndicator():new Container(),
-                              new Flexible(
-                                  child: Padding(
-                                    padding: EdgeInsets.only(
-                                        top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                                    child: new SingleChildScrollView
-                                    (
-                                      child: new Theme(
-                                        data: new ThemeData(
-                                          fontFamily: "WorkSansSemiBold", 
-                                          canvasColor: Colors.white54, //my custom color
-                                        ),
-                                        child: 
-                                            new DropdownButton(
-                                              iconSize: 30.0,
-                                              items: _lPlacesDropDownList,
-                                              onChanged: ((s)
-                                              {
-                                                _controllerPlace.text = s;
-                                                _bHasChangedUpdate = true;
-                                                setPlaceLatLng(s);
-                                              }),
-                                              )
-                                        
-                                    ),
-                                    scrollDirection: Axis.horizontal,
-                                      
-                                  )
-                                )
-                              )
-                            ]
-                          ),
-                          //))) : Container(),
-                          Container(
-                            width: 250.0,
-                            height: 1.0,
-                            color: Colors.grey[400],
-                          ),
-
-                          Padding(
-                            padding: EdgeInsets.only(
-                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                            child: TextField(
-                              focusNode: myFocusNodeRadius,
-                              controller: _controllerRadius,
-                              keyboardType: TextInputType.number,
-                              style: TextStyle(
-                                  fontFamily: "WorkSansSemiBold",
-                                  fontSize: 16.0,
-                                  color: Colors.black),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                icon: Icon(
-                                  FontAwesomeIcons.route,
-                                  size: 22.0,
-                                  color: Colors.black87,
-                                ),
-                                hintText: "מרחק",
-                                hintStyle: TextStyle(
-                                    fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-                                
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 250.0,
-                            height: 1.0,
-                            color: Colors.grey[400],
-                          ),
- 
-                          Padding(
-                            padding: EdgeInsets.only(
-                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                            child: TextField(
-                              focusNode: myFocusNodeWage,
-                              controller: _controllerWage,
-                              keyboardType: TextInputType.number,
-                              style: TextStyle(
-                                  fontFamily: "WorkSansSemiBold",
-                                  fontSize: 16.0,
-                                  color: Colors.black),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                icon: Icon(
-                                  FontAwesomeIcons.shekelSign,
-                                  size: 22.0,
-                                  color: Colors.black87,
-                                ),
-                                hintText: "שכר",
-                                hintStyle: TextStyle(
-                                    fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-                                
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 250.0,
-                            height: 1.0,
-                            color: Colors.grey[400],
-                          ),
-
-                      ]))),
-                  
+            gradient: new LinearGradient(
+                colors: [
+                  ZarizTheme.Colors.zarizGradientStart,
+                  ZarizTheme.Colors.zarizGradientEnd
                 ],
-              ),
-            ],
+                begin: const FractionalOffset(0.0, 0.0),
+                end: const FractionalOffset(1.0, 1.0),
+                stops: [0.0, 1.0],
+                tileMode: TileMode.clamp),
           ),
+          padding: EdgeInsets.only(top: 23.0),
+          
+          child : Card
+          (
+            elevation: 2.0,
+            color: Colors.white54,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            child: SingleChildScrollView(
+              //width: MediaQuery.of(context).size.width * 5 / 6,
+              //height: MediaQuery.of(context).size.height * 2,
+              child: new Column( children: <Widget>[
+                  Padding(
+                    padding: EdgeInsets.only(
+                        top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                    child: 
+                    new Row(
+                      children:<Widget>
+                      [ 
+                        new Flexible(child: _createTextField("פרטי", myFocusNodeFirstName, _controllerWorkerFirstName, FontAwesomeIcons.userAlt)),
+                        new Flexible(child: _createTextField("משפחה", myFocusNodeLastName, _controllerWorkerLastName, FontAwesomeIcons.users)),
+                      ]
+                    ),
+                  ),
+                  Container(
+                    width: 250.0,
+                    height: 1.0,
+                    color: Colors.grey[400],
+                  ),
+                  new Row(
+                    children:<Widget>
+                    [ 
+                      new Flexible(child: _createTextField("מקום", myFocusNodePlace, _controllerWorkerPlace, FontAwesomeIcons.mapMarker)),
+                      new Flexible(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                            child: new SingleChildScrollView
+                            (
+                              child: new Theme(
+                                data: new ThemeData(
+                                  fontFamily: "WorkSansSemiBold", 
+                                  canvasColor: Colors.white54, //my custom color
+                                ),
+                                child: 
+                                    new DropdownButton(
+                                      iconSize: 30.0,
+                                      items: _lPlacesWorkerDropDownList,
+                                      onChanged: ((s)
+                                      {
+                                        _controllerWorkerPlace.text = s;
+                                        _bWorkerIsUpdated = false;
+                                        setPlaceLatLng(s, false);
+                                      }),
+                                      )
+                                
+                            ),
+                            scrollDirection: Axis.horizontal,
+                              
+                          )
+                        )
+                      )
+                    ]
+                  ),
+                  //))) : Container(),
+                  Container(
+                    width: 250.0,
+                    height: 1.0,
+                    color: Colors.grey[400],
+                  ),
+                  _createTextField("מרחק", myFocusNodeRadius, _controllerWorkerRadius, FontAwesomeIcons.route, keyboardType: TextInputType.number),
+                  Container(
+                    width: 250.0,
+                    height: 1.0,
+                    color: Colors.grey[400],
+                  ),
+                  _createTextField("שכר", myFocusNodeWage, _controllerWorkerWage, FontAwesomeIcons.shekelSign, keyboardType: TextInputType.number),
+                  Container(
+                    width: 250.0,
+                    height: 1.0,
+                    color: Colors.grey[400],
+                  ),
+              ]
+            )
+          )
         ),
-              
-      );
-    }
+      ),  
+    );
+  }
   Widget _buildWorkerDetails2(BuildContext context) {
       return new Directionality(
         textDirection: TextDirection.rtl,
@@ -978,7 +1017,7 @@ class _ProfilePageState extends State<ProfilePage>
                   _colorOccupation[index] = uncheckedColor;//ZarizTheme.Colors.zarizGradientEnd.withAlpha(240);
                 }
 
-                _bHasChangedUpdate = true;
+                _bWorkerIsUpdated = false;
                 _workerDetails._lOccupationFieldListString = [];
                 for (var i=0; i < _selectedOccupation.length; i++ ) {
                   if (_selectedOccupation[i]) {
@@ -993,7 +1032,7 @@ class _ProfilePageState extends State<ProfilePage>
         return gridView;
   }
 
-  Widget _buildCarousel(BuildContext context) {
+  Widget _buildWorkerCarousel(BuildContext context) {
     var c = new CarosuelState(pages : <Widget>[
       new ConstrainedBox(
       constraints: const BoxConstraints.expand(),
@@ -1004,10 +1043,160 @@ class _ProfilePageState extends State<ProfilePage>
     ),]);
     return c.buildCarousel(context);
   }
-  Widget _buildBossDetails(BuildContext context) {
+
+  List<DropdownMenuItem<String>> _lJobsDropDownList =[new DropdownMenuItem<String>(
+        value: "מאור",
+        child: new Text("מאור"),
+    )]; 
+  TextEditingController jobPlaceController = new TextEditingController();
+            
+  
+  Widget jobPage(BuildContext context, int index) {
+    bool bIsEmptyEntry = index==_lJobs.length - 1;
+    var jd = _lJobs[index];
+    FocusNode  jobDiscriptionFocusNode = FocusNode();
+    FocusNode  jobPlaceFocusNode = FocusNode();
+    FocusNode  jobWageFocusNode = FocusNode();
+    FocusNode  jobnWorkersFocusNode = FocusNode();
+
+    TextEditingController jobDiscriptionController = TextEditingController(text:(jd._discription!=null?jd._discription:""));
+    TextEditingController jobWageController = TextEditingController(text:(jd._wage!=null?jd._wage.toString():""));
+    TextEditingController jobnWorkersController = TextEditingController(text:(jd.nWorkers!=null?jd.nWorkers.toString():""));
+    // setState(){
+    //   jobPlaceController.text = (jd._place!=null?jd._place.toString():"");
+    // }
+    jobPlaceController.addListener((){
+      _textForAutoCompleteChanged(jobPlaceController, _lJobsDropDownList);
+      setState(() {
+        _bWorkerIsUpdated = false;
+      });
+    });  
+
+    return new ConstrainedBox(
+       constraints: const BoxConstraints.expand(),
+      child:new Directionality(
+        textDirection: TextDirection.rtl,
+        child : new Container(
+          decoration: new BoxDecoration(
+          gradient: new LinearGradient(
+                colors: [
+                  ZarizTheme.Colors.zarizGradientStart,
+                  ZarizTheme.Colors.zarizGradientEnd
+                ],
+                begin: const FractionalOffset(0.0, 0.0),
+                end: const FractionalOffset(1.0, 1.0),
+                stops: [0.0, 1.0],
+                tileMode: TileMode.clamp),
+          ),
+          padding: EdgeInsets.only(top: 23.0),
+          child: 
+            Card(
+              elevation: 2.0,
+              color: Colors.white54,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: new SingleChildScrollView (child: new Column(
+                children: 
+                [
+                  Text("עבודה ${index+1} מתוך ${_lJobs.length}"),
+                  Container(
+                    width: 250.0,
+                    height: 1.0,
+                    color: Colors.grey[400],
+                  ),
+                  _createTextField("תיאור", jobDiscriptionFocusNode, jobDiscriptionController, Icons.edit, keyboardType: TextInputType.multiline, maxLines: 5),
+                  Container(
+                    width: 250.0,
+                    height: 1.0,
+                    color: Colors.grey[400],
+                  ),
+                  new Row(
+                      children:<Widget> [ 
+                        new Flexible(child: _createTextField("מקום", jobPlaceFocusNode, jobPlaceController, FontAwesomeIcons.mapMarker)),
+                        new Flexible(
+                          child: Padding(
+                            padding: EdgeInsets.only(top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                            child: new SingleChildScrollView (
+                              child: new Theme(
+                                data: new ThemeData(
+                                  fontFamily: "WorkSansSemiBold", 
+                                  canvasColor: Colors.white54, //my custom color
+                                ),
+                                child: new DropdownButton(
+                                  iconSize: 30.0,
+                                  items: _lJobsDropDownList,
+                                  onChanged: ((s) {
+                                    setState(() {
+                                      jobPlaceController.text = s;
+                                      _bWorkerIsUpdated = false;
+                                      setPlaceLatLng(s, true);
+                                    }); 
+                                  }),
+                                )
+                              ),
+                              scrollDirection: Axis.horizontal, 
+                            )
+                          )
+                        )
+                      ]
+                    ),
+                  Container(height:120.0, child: new Row(children: <Widget>[
+                    RawMaterialButton(
+                      fillColor: bIsEmptyEntry? Colors.green[300] :Colors.red[300],
+                      splashColor: Colors.white,
+                      child: new Container(
+                        decoration: new BoxDecoration(
+                                                  
+                        shape: BoxShape.circle,// You can use like this way or like the below line
+                        //borderRadius: new BorderRadius.circular(30.0),
+                        color: bIsEmptyEntry ? Colors.green[300] :Colors.red[300],
+                        
+                      ),
+                      child:  bIsEmptyEntry ? new Icon(Icons.add) : new Icon(FontAwesomeIcons.trashAlt), 
+                      ),                          
+                      onPressed: ((){
+                      }),
+                      shape: new CircleBorder(),                          
+                    ),  
+                    Text('${_lJobs[index]._discription}'),
+                  ]))
+                ]
+              ))
+            ),   
+          )
+        )
+      );
+  }
+  Widget _buildJobsCarousel(BuildContext context, List<Widget> jbl) {
+    
+    for (int i=0; i < _lJobs.length; i++) {
+            jbl.add(jobPage(context, i));
+    }
+    var c = new CarosuelState(pages : jbl);
+    return c.buildCarousel(context);
+  }
+  Widget _buildBossCarousel(BuildContext context) {
+    List<Widget> jbl = [];
+    jbl.add(_buildBossDetails1(context));
+    return _buildJobsCarousel(context, jbl);
+  }
+  
+  Widget _buildJobsDetailsList(BuildContext context) {
     return new Directionality(
       textDirection: TextDirection.rtl,
       child : new Container(
+        decoration: new BoxDecoration(
+        gradient: new LinearGradient(
+              colors: [
+                ZarizTheme.Colors.zarizGradientStart,
+                ZarizTheme.Colors.zarizGradientEnd
+              ],
+              begin: const FractionalOffset(0.0, 0.0),
+              end: const FractionalOffset(1.0, 1.0),
+              stops: [0.0, 1.0],
+              tileMode: TileMode.clamp),
+        ),
         padding: EdgeInsets.only(top: 23.0),
         child: Column(
           children: <Widget>[
@@ -1021,23 +1210,161 @@ class _ProfilePageState extends State<ProfilePage>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8.0),
                   ),
-                  child: Container(
-                    width: 300.0,
-                    height: 360.0,
-                    child: Column(
-                      children: <Widget>[
-
+                  child: new Stack(
+                    children: [
+                      SingleChildScrollView(child: new 
+                        ListView.builder( 
+                          shrinkWrap: true,
+                          padding: EdgeInsets.only(
+                                top: 20.0, bottom: 20.0, left: 25.0),
+                          itemCount: _lJobs.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            return   Container(height:120.0, child: new Row(children: <Widget>[
+                              RawMaterialButton(
+                                fillColor: index!=_lJobs.length? Colors.green[300] :Colors.red[300],
+                                splashColor: Colors.white,
+                                child: new Container(
+                                  decoration: new BoxDecoration(                          
+                                    shape: BoxShape.circle,
+                                    color: Colors.green,
+                                ),
+                                child:  index!=_lJobs.length? new Icon(Icons.add) : new Icon(FontAwesomeIcons.trashAlt), 
+                                ), 
+                                onPressed: ((){
+                                }),
+                                shape: new CircleBorder(),
+                                
+                              ),
                         
-                      ],
-                    ),
-                  ),
-                ),
+                              Text('${_lJobs[index]._discription}'),
+                            ]));
+                          }
+                        )
+                      ),
+                    ]
+                  )
+                ),  
               ],
-            ),
-          ],
-        ),
-      ),
+            )
+          ]
+        )
+      )
     );
   }
-  
+  Widget _buildBossDetails1(BuildContext context) {
+    return new Directionality(
+        textDirection: TextDirection.rtl,
+        child : new Container(
+          decoration: new BoxDecoration(
+                  gradient: new LinearGradient(
+                      colors: [
+                        ZarizTheme.Colors.zarizGradientStart,
+                        ZarizTheme.Colors.zarizGradientEnd
+                      ],
+                      begin: const FractionalOffset(0.0, 0.0),
+                      end: const FractionalOffset(1.0, 1.0),
+                      stops: [0.0, 1.0],
+                      tileMode: TileMode.clamp),
+                ),
+          padding: EdgeInsets.only(top: 23.0),
+          child: Column(
+            children: <Widget>[
+              Stack(
+                alignment: Alignment.topCenter,
+                overflow: Overflow.visible,
+                children: <Widget>[
+                  Card(
+                    elevation: 2.0,
+                    color: Colors.white54,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                     child: Container(
+                    //   //width: MediaQuery.of(context).size.width * 5 / 6,
+                    //   //height: MediaQuery.of(context).size.height * 2,
+                       child: new Column( children: <Widget>[
+                          Padding(
+                            padding: EdgeInsets.only(
+                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                            child: 
+                            new Row(
+                              children:<Widget>
+                              [ 
+                                new Flexible(child: _createTextField("פרטי", myFocusNodeBossFirstName, _controllerWorkerFirstName, FontAwesomeIcons.userAlt)),
+                                new Flexible(child: _createTextField("משפחה", myFocusNodeBossLastName, _controllerWorkerLastName, FontAwesomeIcons.users)),
+                                
+                              ]
+                            ),
+                          ),
+                          Container(
+                            width: 250.0,
+                            height: 1.0,
+                            color: Colors.grey[400],
+                          ),
+                          new SingleChildScrollView(
+                             child: _createTextField("שם העסק", myFocusNodeBossBuisnessName, _controllerBossBuisnessName, FontAwesomeIcons.userAlt),
+                          ),
+                                                 
+                          new Row(
+                            children:<Widget>
+                            [ 
+                              new Flexible(child: _createTextField("מקום", myFocusNodeBossPlace, _controllerBossPlace, FontAwesomeIcons.mapMarker)),
+                              new Flexible(
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                      top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                                    child: new SingleChildScrollView
+                                    (
+                                      child: new Theme(
+                                        data: new ThemeData(
+                                          fontFamily: "WorkSansSemiBold", 
+                                          canvasColor: Colors.white54, //my custom color
+                                        ),
+                                        child: new DropdownButton(
+                                          iconSize: 30.0,
+                                          items: _lPlacesBossDropDownList,
+                                          onChanged: ((s)
+                                          {
+                                            _controllerBossPlace.text = s;
+                                            _bWorkerIsUpdated = false;
+                                            setPlaceLatLng(s, true);
+                                          }),
+                                        )
+                                      ),
+                                      scrollDirection: Axis.horizontal, 
+                                    )
+                                  )
+                                )
+                            ]
+                          ),
+                          Container(
+                            width: 250.0,
+                            height: 1.0,
+                            color: Colors.grey[400],
+                          ),
+                        ]
+                      )
+                    )
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),          
+      );
+  } 
+}
+class InvertedCircleClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    return new Path()
+      ..addOval(new Rect.fromCircle(
+          center: new Offset(size.width / 2, size.height / 2),
+          radius: size.width * 0.45))
+      ..addRect(new Rect.fromLTWH(0.0, 0.0, size.width, size.height))
+      ..fillType = PathFillType.evenOdd;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

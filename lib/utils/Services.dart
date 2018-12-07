@@ -16,13 +16,39 @@ class Services {
 
   String ip = sDefaultIP;
   int port = sDefaultPORT;
-
+  Services(){
+    var __ip = Singleton().persistentState.getString("IP");
+    var __port = Singleton().persistentState.getString("port");
+    if (__ip != null && __port != null){
+      setIP(__ip, int.parse(__port));
+    }
+  }
   void setIP(String __ip, int __port){
-    ip = __ip;
+    ip = __ip;  
     port = __port;
+    Singleton().persistentState.setString("IP", ip.toString());
+    Singleton().persistentState.setString("port", __port.toString());
   }
   Future<Map<String, dynamic>> updateInputForm(Map<String, dynamic> fields) async {
     var res = postServer("/updateAllInputsForm/", fields);
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+            if (jResponse.containsKey("Error") && jResponse["Error"] == "no change") {
+
+            } else {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              // toDo: update the occupation list and picture 
+              Singleton().persistentState.setString("WorkerDetails", jResponse2.toString());
+            }
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> updateBossInputForm(Map<String, dynamic> fields) async {
+    var res = postServer("/updateAllBossInputsForm/", fields);
         
     res.then((jResponse) {
           if (jResponse["success"] == true) {
@@ -60,6 +86,19 @@ class Services {
               var jResponse2 = new Map<String, String>.from(jResponse);
               jResponse2.remove("success");
               Singleton().persistentState.setString("details", jResponse.toString());
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> getBossFieldDetails() async {
+    var res = postServer("/getBossFieldDetails/", {});
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+              var jResponse2 = new Map<String, String>.from(jResponse);
+              jResponse2.remove("success");
+              Singleton().persistentState.setString("bossDetails", jResponse.toString());
           }
     });
 
