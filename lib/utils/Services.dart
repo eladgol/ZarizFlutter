@@ -17,10 +17,15 @@ class Services {
   String ip = sDefaultIP;
   int port = sDefaultPORT;
   Services(){
-    var __ip = Singleton().persistentState.getString("IP");
-    var __port = Singleton().persistentState.getString("port");
-    if (__ip != null && __port != null){
-      setIP(__ip, int.parse(__port));
+    try {
+      var __ip = Singleton().persistentState.getString("IP");
+      var __port = Singleton().persistentState.getString("port");
+      if (__ip != null && __port != null){
+        setIP(__ip, int.parse(__port));
+        ip = __ip;
+        port = int.parse(__port);
+      }
+    } catch (e) {
     }
   }
   void setIP(String __ip, int __port){
@@ -65,12 +70,63 @@ class Services {
 
     return res;
   }
+  Future<Map<String, dynamic>> deleteJobAsBoss(String jobID) async {
+    var res = postServer("/deleteJobAsBoss/", {"jobID" : jobID});
+
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+            if (jResponse.containsKey("Error") && jResponse["Error"] == "no change") {
+
+            } else {
+
+            }
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> updateJobAsBoss(Map<String, dynamic> fields) async {
+    var res = postServer("/updateJobAsBoss/", fields);
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+            if (jResponse.containsKey("Error") && jResponse["Error"] == "no change") {
+
+            } else {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              // toDo: update the occupation list and picture 
+              //Singleton().persistentState.setString("WorkerDetails", jResponse2.toString());
+            }
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> getAllJobsAsBoss() async {
+    var res = postServer("/getAllJobsAsBoss/", {});
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+            if (jResponse.containsKey("Error") && jResponse["Error"] == "no change") {
+
+            } else {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              // toDo: update the occupation list and picture 
+              //Singleton().persistentState.setString("WorkerDetails", jResponse2.toString());
+            }
+          }
+    });
+
+    return res;
+  }
   Future<Map<String, dynamic>> getOccupationDetails() async {
     var res = postServer("/occupationDetails/", {});
         
     res.then((jResponse) {
           if (jResponse["success"] == true) {
-              var jResponse2 = new Map<String, String>.from(jResponse);
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
               jResponse2.remove("success");
               Singleton().persistentState.setString("WorkerOccupation", jResponse2.toString());
           }
@@ -83,7 +139,7 @@ class Services {
         
     res.then((jResponse) {
           if (jResponse["success"] == true) {
-              var jResponse2 = new Map<String, String>.from(jResponse);
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
               jResponse2.remove("success");
               Singleton().persistentState.setString("details", jResponse.toString());
           }
@@ -96,7 +152,7 @@ class Services {
         
     res.then((jResponse) {
           if (jResponse["success"] == true) {
-              var jResponse2 = new Map<String, String>.from(jResponse);
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
               jResponse2.remove("success");
               Singleton().persistentState.setString("bossDetails", jResponse.toString());
           }

@@ -31,7 +31,7 @@ class DotsIndicator extends AnimatedWidget {
   final Color color;
 
   // The base size of the dots
-  static const double _kDotSize = 8.0;
+  static const double _kDotSize = 4.0;
 
   // The increase in the size of the selected dot
   static const double _kMaxZoom = 2.0;
@@ -84,11 +84,11 @@ class CarosuelState {
 
   static const _kCurve = Curves.ease;
 
-  Widget buildCarousel(BuildContext context) {
+  Widget buildCarousel(BuildContext context, double _height) {
     return new Stack(
           children: <Widget>[
             new SizedBox(
-            height : MediaQuery.of(context).size.height * 0.6,
+            height : _height,
             child: new PageView.builder(
               physics: new AlwaysScrollableScrollPhysics(),
               controller: _controller,
@@ -96,6 +96,7 @@ class CarosuelState {
                 return pages[index % pages.length];
               },
             )),
+           
             new Positioned(
               bottom: 0.0,
               left: 0.0,

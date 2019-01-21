@@ -409,9 +409,11 @@ class _LoginPageState extends State<LoginPage>
           setState(() {
                       loginEmailController.text = o.getString("user");
                       loginPasswordController.text = o.getString("password");
+                      _services = new Services();
                       //onLoginPressed(loginEmailController.text, loginPasswordController.text);
                     });
     });
+
   }
 
   void showInSnackBar(String value) {
