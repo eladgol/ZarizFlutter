@@ -1,4 +1,4 @@
-package com.zariz.zarizapp
+package com.zariz.ZarizApp
 
 import android.os.Bundle
 

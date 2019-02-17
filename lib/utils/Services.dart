@@ -45,7 +45,7 @@ class Services {
               var jResponse2 = new Map<String, dynamic>.from(jResponse);
               jResponse2.remove("success");
               // toDo: update the occupation list and picture 
-              Singleton().persistentState.setString("WorkerDetails", jResponse2.toString());
+              //Singleton().persistentState.setString("WorkerDetails", jResponse2.toString());
             }
           }
     });
@@ -63,7 +63,7 @@ class Services {
               var jResponse2 = new Map<String, dynamic>.from(jResponse);
               jResponse2.remove("success");
               // toDo: update the occupation list and picture 
-              Singleton().persistentState.setString("WorkerDetails", jResponse2.toString());
+              Singleton().persistentState.setString("BossDetails", jResponse2.toString());
             }
           }
     });
@@ -134,6 +134,19 @@ class Services {
 
     return res;
   }
+  Future<Map<String, dynamic>> getWorkerDetailsForID(String id) async {
+    var res = postServer("/getWorkerDetailsForID/", {'id' : id});
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              //Singleton().persistentState.setString("details", jResponse2.toString());
+          }
+    });
+
+    return res;
+  }
   Future<Map<String, dynamic>> getFieldDetails() async {
     var res = postServer("/getFieldDetails/", {});
         
@@ -141,7 +154,7 @@ class Services {
           if (jResponse["success"] == true) {
               var jResponse2 = new Map<String, dynamic>.from(jResponse);
               jResponse2.remove("success");
-              Singleton().persistentState.setString("details", jResponse.toString());
+              //Singleton().persistentState.setString("details", jResponse2.toString());
           }
     });
 
@@ -154,7 +167,46 @@ class Services {
           if (jResponse["success"] == true) {
               var jResponse2 = new Map<String, dynamic>.from(jResponse);
               jResponse2.remove("success");
-              Singleton().persistentState.setString("bossDetails", jResponse.toString());
+              //Singleton().setString.setString("bossDetails", jResponse2.toString());
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> queryJob(jobID) async {
+    var res = postServer("/queryJob/", {'jobID' : jobID});
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> registerDevice(name, deviceType, deviceID, token) async {
+    var res = postServer("/registerDevice/", {'type' : deviceType, 'name' : name, 'token' : token, 'id' : deviceID});
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> confirmJob(jobID) async {
+    var res = postServer("/confirmJob/", {'jobID' : jobID});
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              
           }
     });
 

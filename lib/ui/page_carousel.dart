@@ -31,10 +31,10 @@ class DotsIndicator extends AnimatedWidget {
   final Color color;
 
   // The base size of the dots
-  static const double _kDotSize = 4.0;
+  static const double _kDotSize = 8.0;
 
   // The increase in the size of the selected dot
-  static const double _kMaxZoom = 2.0;
+  static const double _kMaxZoom = 4.0;
 
   // The distance between the center of each dot
   static const double _kDotSpacing = 25.0;
@@ -84,6 +84,9 @@ class CarosuelState {
 
   static const _kCurve = Curves.ease;
 
+  double getCurrentPage(BuildContext context) {
+    return this._controller.page;
+  }
   Widget buildCarousel(BuildContext context, double _height) {
     return new Stack(
           children: <Widget>[
@@ -97,28 +100,28 @@ class CarosuelState {
               },
             )),
            
-            new Positioned(
-              bottom: 0.0,
-              left: 0.0,
-              right: 0.0,
-              child: new Container(
-                color: Colors.grey[800].withOpacity(0.5),
-                padding: const EdgeInsets.all(20.0),
-                child: new Center(
-                  child: new DotsIndicator(
-                    controller: _controller,
-                    itemCount: pages.length,
-                    onPageSelected: (int page) {
-                      _controller.animateToPage(
-                        page,
-                        duration: _kDuration,
-                        curve: _kCurve,
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
+            // new Positioned(
+            //   top: 0.0,
+            //   left: 0.0,
+            //   right: 0.0,
+            //   child: new Container(
+            //     color: Colors.grey[800].withOpacity(0.1),
+            //     padding: const EdgeInsets.all(20.0),
+            //     child: new Center(
+            //       child: new DotsIndicator(
+            //         controller: _controller,
+            //         itemCount: pages.length,
+            //         onPageSelected: (int page) {
+            //           _controller.animateToPage(
+            //             page,
+            //             duration: _kDuration,
+            //             curve: _kCurve,
+            //           );
+            //         },
+            //       ),
+            //     ),
+            //   ),
+            // ),
           ],
     );
   }

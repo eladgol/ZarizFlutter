@@ -22,6 +22,11 @@ dependencies:
   location: ^1.4.1
   google_sign_in: ^3.2.4
   flutter_launcher_icons: ^0.7.0
+  firebase_core: ^0.2.5  # add dependency for Firebase Core
+  firebase_messaging: ^2.0.0
+  firebase_analytics: ^1.0.4
+  device_info: ^0.3.0
+
 flutter_icons:
   android: "launcher_icon" 
   ios: true

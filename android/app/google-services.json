@@ -1,0 +1,237 @@
+{
+  "project_info": {
+    "project_number": "357060023149",
+    "firebase_url": "https://zariz-204206.firebaseio.com",
+    "project_id": "zariz-204206",
+    "storage_bucket": "zariz-204206.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:357060023149:android:1451e3305783cae5",
+        "android_client_info": {
+          "package_name": "com.fungmented.TestFirebase"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "357060023149-60qgdf204njah9o0nh73umjg246072o9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-0OOUaVhI332B2lzasRkSfYgRNziTrlk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:357060023149:android:15d65f5d9bb27885",
+        "android_client_info": {
+          "package_name": "com.fungmented.ZarizApp2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "357060023149-60qgdf204njah9o0nh73umjg246072o9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-0OOUaVhI332B2lzasRkSfYgRNziTrlk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:357060023149:android:e6ed68e2ba71b212",
+        "android_client_info": {
+          "package_name": "com.fungmented.ZarizFinal"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "357060023149-60qgdf204njah9o0nh73umjg246072o9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-0OOUaVhI332B2lzasRkSfYgRNziTrlk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:357060023149:android:a7c850f8a14bab48",
+        "android_client_info": {
+          "package_name": "com.fungmented.zarizfirebaseandroidproject"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "357060023149-vgun8matphirp3dbn7l7r6b8pidjuruj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fungmented.zarizfirebaseandroidproject",
+            "certificate_hash": "f4a9bf44e954ecb6429ab827e89ab90b12308419"
+          }
+        },
+        {
+          "client_id": "357060023149-60qgdf204njah9o0nh73umjg246072o9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-0OOUaVhI332B2lzasRkSfYgRNziTrlk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "357060023149-60qgdf204njah9o0nh73umjg246072o9.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "357060023149-92te36galdag80oriuk8bsgvhsufklui.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.fungmented.ZarizFinal"
+              }
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:357060023149:android:87fcb66cc6ca320a",
+        "android_client_info": {
+          "package_name": "com.google.firebase.quickstart.auth"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "357060023149-hlt5mqpmp7scm4rud20a94l4fdns00mq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.google.firebase.quickstart.auth",
+            "certificate_hash": "f4a9bf44e954ecb6429ab827e89ab90b12308419"
+          }
+        },
+        {
+          "client_id": "357060023149-60qgdf204njah9o0nh73umjg246072o9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-0OOUaVhI332B2lzasRkSfYgRNziTrlk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "357060023149-60qgdf204njah9o0nh73umjg246072o9.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "357060023149-92te36galdag80oriuk8bsgvhsufklui.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.fungmented.ZarizFinal"
+              }
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:357060023149:android:72be790eb5c251be",
+        "android_client_info": {
+          "package_name": "com.zariz.ZarizApp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "357060023149-60qgdf204njah9o0nh73umjg246072o9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-0OOUaVhI332B2lzasRkSfYgRNziTrlk"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

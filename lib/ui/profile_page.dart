@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:zariz_app/style/theme.dart' as ZarizTheme;
-import 'package:zariz_app/utils/bubble_indication_painter.dart';
+import 'package:zariz_app/utils/bubble_indication_manual_painter.dart';
 import 'package:zariz_app/utils/Services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,7 +19,81 @@ import 'package:zariz_app/ui/page_carousel.dart';
 import 'package:location/location.dart' as LocationGPS;
 
 import 'package:flutter/rendering.dart'; 
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:device_info/device_info.dart';
+import 'package:zariz_app/ui/uiUtils.dart';
+final Map<String, Item> _items = <String, Item>{};
+Item _itemForMessage(Map<String, dynamic> message) {
+  final String itemId = message['data']['id'];
+  final Item item = _items.putIfAbsent(itemId, () => Item(itemId: itemId))
+    ..status = message['data']['status'];
+  return item;
+}
 
+class Item {
+  Item({this.itemId});
+  final String itemId;
+
+  StreamController<Item> _controller = StreamController<Item>.broadcast();
+  Stream<Item> get onChanged => _controller.stream;
+
+  String _status;
+  String get status => _status;
+  set status(String value) {
+    _status = value;
+    _controller.add(this);
+  }
+
+  static final Map<String, Route<void>> routes = <String, Route<void>>{};
+  Route<void> get route {
+    final String routeName = '/detail/$itemId';
+    return routes.putIfAbsent(
+      routeName,
+      () => MaterialPageRoute<void>(
+            settings: RouteSettings(name: routeName),
+            builder: (BuildContext context) => DetailPage(itemId),
+          ),
+    );
+  }
+}
+class DetailPage extends StatefulWidget {
+  DetailPage(this.itemId);
+  final String itemId;
+  @override
+  _DetailPageState createState() => _DetailPageState();
+}
+
+class _DetailPageState extends State<DetailPage> {
+  Item _item;
+  StreamSubscription<Item> _subscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _item = _items[widget.itemId];
+    _subscription = _item.onChanged.listen((Item item) {
+      if (!mounted) {
+        _subscription.cancel();
+      } else {
+        setState(() {
+          _item = item;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Item ${_item.itemId}"),
+      ),
+      body: Material(
+        child: Center(child: Text("Item status: ${_item.status}")),
+      ),
+    );
+  }
+}
 class CurrentLocation {
   String name = "Maor";
   double lat = 0.0;
@@ -52,9 +126,16 @@ class BossDetails{
 class JobsContext{
   JobsDetails details;
   JobsUI ui;
+  List<WorkerDetails> lWorkersNotified;
+  List<WorkerDetails> lWorkersAuthorized;
+  List<WorkerDetails> lWorkersResponded;
+  
   JobsContext(JobsDetails details) {
     this.details = details;
     this.ui = new JobsUI(this.details);
+    this.lWorkersNotified = [];
+    this.lWorkersAuthorized = [];
+    this.lWorkersResponded = [];
   }
 }
 class JobsUI{
@@ -128,7 +209,7 @@ class WorkerDetails{
       'place'         : _place,
       'lat'           : _lat.toString(),
       'lng'           : _lng.toString(),
-      'lOccupationFieldListString' : fixDecoding(_lOccupationFieldListString)
+      'lOccupationFieldListString' : _lOccupationFieldListString==null?"":fixDecoding(_lOccupationFieldListString)
     };
   }
 String fixDecoding(List<String> sIn) {
@@ -175,6 +256,7 @@ List<String> fixEncoding(String sIn) {
 }
 List<AppBarChoice> choices = <AppBarChoice>[
   AppBarChoice(title: 'update', icon: Icons.check),
+  AppBarChoice(title: 'jobs', icon: FontAwesomeIcons.screwdriver),
   AppBarChoice(title: 'logoff', icon: FontAwesomeIcons.signOutAlt),
   AppBarChoice(title: 'debug', icon: FontAwesomeIcons.bug),
   AppBarChoice(title: 'feed', icon: FontAwesomeIcons.solidBell),
@@ -186,10 +268,10 @@ class ProfilePage extends StatefulWidget {
   @override
   _ProfilePageState createState() => new _ProfilePageState();
 }
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
 
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
-
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
 
   final FocusNode myFocusNodeEmail = FocusNode();
   final FocusNode myFocusNodeFirstName = FocusNode();
@@ -204,7 +286,10 @@ class _ProfilePageState extends State<ProfilePage> {
   final FocusNode myFocusNodeBossBuisnessName = FocusNode();
   final FocusNode myFocusNodeBossPlace        = FocusNode();
 
-  
+  String _firebase_token = "";
+  Item _item;
+  StreamSubscription<Item> _subscription;
+
   bool _bWorkerIsUpdated = true;
   int _iJobIsUpdated = -1;
   String _idJobIsUpdated = "";
@@ -213,8 +298,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Color left = Colors.black;
   Color right = Colors.white;
 
-  WorkerDetails _workerDetails;
-  BossDetails _bossDetails;
+  WorkerDetails _workerDetails = new WorkerDetails();
+  BossDetails _bossDetails = new BossDetails();
 
   List<JobsContext> _lJobs = [];
   List<String> _lJobsIDsMarkedForDeletion = [];
@@ -248,8 +333,8 @@ class _ProfilePageState extends State<ProfilePage> {
   void _select(AppBarChoice choice) {
     // Causes the app to rebuild with the new _selectedChoice.
     setState(() {
-      _bUpdatingDetails = true;
       if (choice.title == "update") {
+        _bUpdatingDetails = true;
         if (!_bWorkerIsUpdated){
           print(_workerDetails.toJSON());
           
@@ -317,11 +402,16 @@ class _ProfilePageState extends State<ProfilePage> {
           refreshJobs();
         } 
       }
-      if (choice.title == "debug") {
-          print(_workerDetails.toString());
-          debugDumpApp();
-          debugDumpRenderTree();
+      if (choice.title == "jobs") {
+          setState(() {
+            _bJobMenu=!_bJobMenu;
+          });
       }
+      // if (choice.title == "debug") {
+      //     print(_workerDetails.toString());
+      //     debugDumpApp();
+      //     debugDumpRenderTree();
+      // }
     });
   }
 
@@ -414,6 +504,7 @@ class _ProfilePageState extends State<ProfilePage> {
   double _heightImage = hDefault * 0.15;
   double _heightSwitch = hDefault * 0.05;
   double _heightMain = hDefault * 0.7;
+  double _widthSwitch = hDefault * 0.5;
   CurrentLocation _currLocation = new CurrentLocation();
  
   //@override
@@ -440,12 +531,35 @@ class _ProfilePageState extends State<ProfilePage> {
   //     )
   //   );
   // }
-  
-  Decoration decorationWorker(BuildContext context) {
+  //AnimationController _controllerAnimation;
+  Color _zarizGradientColorAnimation;
+  //Animation<Color> _zarizGradientColorAnimation;
+  Decoration decorationBossWorker(BuildContext context, bool bIsWorker)  {
+    try {
+      setState(() {
+      //_controllerAnimation = AnimationController(
+      //vsync: this,
+      //duration: Duration(
+      //seconds: 5),);;
+        _zarizGradientColorAnimation = bIsWorker?ZarizTheme.Colors.zarizGradientStart2:ZarizTheme.Colors.zarizGradientStart1;
+    // ColorTween(
+    //   begin: bIsWorker?ZarizTheme.Colors.zarizGradientStart1:ZarizTheme.Colors.zarizGradientStart2,
+    //   end: bIsWorker?ZarizTheme.Colors.zarizGradientStart2:ZarizTheme.Colors.zarizGradientStart1).
+    //   animate(_controllerAnimation);
+      });
+    } catch (e) {
+      print(e);
+      // This is a hack to fix the exception - setState() or markNeedsBuild() called during build.
+      // This is due to it always failing when a message is arrived at the same time the job live page is built.
+      (Future<Decoration>.delayed(new Duration(milliseconds: 500), (()  {return decorationBossWorker(context, bIsWorker);}))).then((d) {return d;});
+    }
+    
+    
     return new BoxDecoration(
           gradient: new LinearGradient(
           colors: [
-            ZarizTheme.Colors.zarizGradientStart1,
+            _zarizGradientColorAnimation==null?(bIsWorker?ZarizTheme.Colors.zarizGradientStart2:ZarizTheme.Colors.zarizGradientStart1):
+              _zarizGradientColorAnimation,
             ZarizTheme.Colors.zarizGradientEnd
           ],
           begin: const FractionalOffset(0.0, 0.0),
@@ -454,49 +568,88 @@ class _ProfilePageState extends State<ProfilePage> {
           tileMode: TileMode.clamp),
     );
   }
-  Decoration decorationBoss(BuildContext context) {
-    return new BoxDecoration(
-          gradient: new LinearGradient(
-          colors: [
-            ZarizTheme.Colors.zarizGradientStart2,
-            ZarizTheme.Colors.zarizGradientEnd
-          ],
-          begin: const FractionalOffset(0.0, 0.0),
-          end: const FractionalOffset(1.0, 1.0),
-          stops: [0.0, 1.0],
-          tileMode: TileMode.clamp),
-    );
-  }
-  String _profileTitleBoss = "פרופיל מעביד";
+  String _profileTitleBoss = "פרופיל מעסיק";
   String _profileTitleWorker = "פרופיל עובד";
-  Widget build(BuildContext context) {
+  String _profileTitleBossJobs = "עבודות מעסיק";
+  String _profileTitleWorkerJobs = "עבודות עובד";
+  List<Widget> _pages;
+  Widget buildInternal(BuildContext context) {
+    _pages =  [new AnimatedCrossFade(
+                  firstChild: _buildMainJobsCarousel(context),
+                  secondChild: _buildWorkerDetails1(context),
+                  duration: const Duration(milliseconds: 500),
+                  crossFadeState: _bJobMenu? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                ),
+                new AnimatedCrossFade(
+                  firstChild: _buildMainJobsCarousel(context),
+                  secondChild: _buildBossDetails1(context),
+                  duration: const Duration(milliseconds: 500),
+                  crossFadeState: _bJobMenu? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                ),
+              ];
+    return new Flexible(
+      child: AnimatedCrossFade(
+                  firstChild: _pages[0],
+                  secondChild: _pages[1],
+                  duration: const Duration(milliseconds: 500),
+                  crossFadeState: _bBossMode ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                ));
+     // flex: 2,
+    //   child: PageView(
+    //     controller: _pageController,
+    //     onPageChanged: (i) {
+    //       if (i == 0) {
+    //         setState(() {
+    //           right = Colors.white;
+    //           left = Colors.black;
+    //         });
+    //       } else if (i == 1) {
+    //         setState(() {
+    //           right = Colors.black;
+    //           left = Colors.white;
+    //         });
+    //       }
+    //     },
+    //     children: 
+    //       _pages,
+        
+    //   ),
+    // );
+  }
+  Widget buildFrame(BuildContext context, Widget internalWidget, GlobalKey<ScaffoldState> scaffoldKey)
+  {
     return new Directionality(
       textDirection: TextDirection.rtl,
         child : new Scaffold(
         appBar: AppBar(
-        title: Text(_bBossMode?_profileTitleBoss:_profileTitleWorker),
+        title: FittedBox(
+          child: Text(_bBossMode?(_bJobMenu?_profileTitleBossJobs:_profileTitleBoss):(_bJobMenu?_profileTitleWorkerJobs:_profileTitleWorker)),
+          fit: BoxFit.scaleDown,
+        ),
         actions: <Widget>[
-              IconButton(
-                icon: new Icon(Icons.check),
-                onPressed: () {
-                  _select(choices[0]);
-                  
-                },
-                color: (_bWorkerIsUpdated || _iJobIsUpdated == -1) ? Colors.green: Colors.red,
-              ),
+              LayoutBuilder(builder: (context, constraint) {
+                return new IconButton(
+                  icon: new Icon(FontAwesomeIcons.check, size:constraint.biggest.height*0.5),
+                  onPressed: () {
+                    _select(choices[0]); 
+                  },
+                  color: (_bWorkerIsUpdated && _iJobIsUpdated == -1) ? Colors.green: Colors.red,
+                  tooltip: (_bWorkerIsUpdated && _iJobIsUpdated == -1) ? "מעודכן":"עדכן",
+                 
+                );
+              }),
               // action button
-              IconButton(
-                icon: Icon(FontAwesomeIcons.signOutAlt),
-                onPressed: () {
-                  _select(choices[1]);
-                },
-              ),
-              IconButton(
-                icon: Icon(FontAwesomeIcons.bug),
-                onPressed: () {
-                  _select(choices[2]);
-                },
-              ),
+              LayoutBuilder(builder: (context, constraint) {
+                return new IconButton(
+                  icon: _bJobMenu?
+                    Icon(FontAwesomeIcons.pencilAlt, size:constraint.biggest.height*0.45, color: ZarizTheme.Colors.zarizGradientStart2):
+                    Icon(FontAwesomeIcons.hammer, size:constraint.biggest.height*0.45, color: ZarizTheme.Colors.zarizGradientStart),
+                  tooltip: _bJobMenu? "עריכת פרטים":"הצגת עבודות",
+                  onPressed: () {
+                    _select(choices[1]);
+                  },
+                );
+              }),
               PopupMenuButton<AppBarChoice>(
                 onSelected: _select,
                 itemBuilder: (BuildContext context) {
@@ -511,91 +664,96 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
 
         ),
-        key: _scaffoldKey,
+        key: scaffoldKey,
         body: NotificationListener<OverscrollIndicatorNotification>(
           onNotification: (overscroll) {
             overscroll.disallowGlow();
           },
-          child: SingleChildScrollView(
-                child: Container(
+
+                child: AnimatedContainer(
+                  duration: new Duration(milliseconds:500),
                   width: MediaQuery.of(context).size.width,
                   height: MediaQuery.of(context).size.height >= hDefault
                       ? MediaQuery.of(context).size.height
                       : hDefault,
-                  decoration: _bBossMode?  decorationBoss(context) : decorationWorker(context),
+                  
+                  decoration: decorationBossWorker(context,_bBossMode),
                   child: Column(
                     children: <Widget>[
                       Padding(
-                        padding: EdgeInsets.only(top: 8.0),
+                        padding: EdgeInsets.only(top: 2.0),
                         child: new FlatButton(
                           onPressed: onImagePressed,
                           child:  new ClipRRect(
-                            borderRadius: new BorderRadius.circular(2.0),
                             child: _image,
-                            
+                            borderRadius: BorderRadius.circular(16.0),
                           ),
                         ),   
                       ),
                       Padding(
-                        padding: EdgeInsets.only(top: 5.0, bottom: 5.0),
+                        padding: EdgeInsets.only(top: 2.0, bottom: 5.0),
                         child: _buildSwitchBar(context),
                       ),
                       (_bIsLoadingPlaces || _bUpdatingDetails) ? new CircularProgressIndicator(backgroundColor: ZarizTheme.Colors.zarizGradientStart):new Container(),
-                      
-                      Flexible(
-                        flex: 2,
-                        child: PageView(
-                          controller: _pageController,
-                          onPageChanged: (i) {
-                            if (i == 0) {
-                              setState(() {
-                                right = Colors.white;
-                                left = Colors.black;
-                              });
-                            } else if (i == 1) {
-                              setState(() {
-                                right = Colors.black;
-                                left = Colors.white;
-                              });
-                            }
-                          },
-                          children: <Widget>[
-                            new SingleChildScrollView(
-                              //constraints: const BoxConstraints.expand(),
-                              child: _buildWorkerCarousel(context),
-                              primary: false,
-                            ),
-                            new SingleChildScrollView(
-                              child: _buildBossCarousel(context),
-                              primary: false,
-                            ),
-                          ],
-                        ),
-                      ),
+                      internalWidget,
                     ],
                   ),
                 ),
-              ),
+
         ),
       ),
     );
   }
+  Widget build(BuildContext context) {
+    return buildFrame(context, buildInternal(context), _scaffoldKey);
+  }
+
   static final uncheckedColor = ZarizTheme.Colors.zarizGradientEnd.withAlpha(64);
   static final checkedColor = ZarizTheme.Colors.zarizGradientEnd.withAlpha(240);
 
   void refreshJobs() {
     _services.getAllJobsAsBoss().then((res){
-    if ((res["success"] == "true") || (res["success"] == true)) {
+    if (res["success"] == "true" || res["success"] == true) {
         setState(() {
           _lJobs = [];
           for (int i=0;i<(res.length - 1);i++) {
             var j=res[i.toString()];
             _lJobs.add(new JobsContext(new JobsDetails()..nWorkers=j["nWorkers"].._place=j["place"].._jobId=j["jobID"].._discription=j["discription"].._lat=j["lat"].._lng=j["lng"].._wage=j["wage"].._lOccupationFieldListString=[j["occupationFieldListString"]]));
             _lJobs[i].details.nWorkers = j["nWorkers"];
-          } 
+            j["workerID_responded"].forEach((workers){
+              var resFuture = _services.getWorkerDetailsForID(workers);
+              resFuture.then((res) {
+                if ((res["success"] == "true") || (res["success"] == true)) {
+                  _lJobs[i].lWorkersResponded.add(new WorkerDetails().._firstName=res["firstName"].._lastName=res["lastName"].._lat=res["lat"]..
+                    _lng=res["lng"].._photoAGCSPath=res["_photoAGCSPath"].._radius = res["radius"].._wage = res["wage"].._place = res["place"].._userID=res["userID"]);
+                }
+              });
+            });
+            j["workerID_sentNotification"].forEach((workers){
+              var resFuture = _services.getWorkerDetailsForID(workers);
+              resFuture.then((res) {
+                if ((res["success"] == "true") || (res["success"] == true)) {
+                  _lJobs[i].lWorkersNotified.add(new WorkerDetails().._firstName=res["firstName"].._lastName=res["lastName"].._lat=res["lat"]..
+                    _lng=res["lng"].._photoAGCSPath=res["_photoAGCSPath"].._radius = res["radius"].._wage = res["wage"].._place = res["place"].._userID=res["userID"]);
+                }
+              });
+            });
+            j["workerID_authorized"].forEach((workers){
+              var resFuture = _services.getWorkerDetailsForID(workers);
+              resFuture.then((res) {
+                if ((res["success"] == "true") || (res["success"] == true)) {
+                  _lJobs[i].lWorkersAuthorized.add(new WorkerDetails().._firstName=res["firstName"].._lastName=res["lastName"].._lat=res["lat"]..
+                    _lng=res["lng"].._photoAGCSPath=res["_photoAGCSPath"].._radius = res["radius"].._wage = res["wage"].._place = res["place"].._userID=res["userID"]);
+                }
+              });
+            });
+          }
         });
-    }});
+      }
+    });
   }
+
+  
 
   void onImagePressed(){
       getImage();
@@ -612,21 +770,47 @@ class _ProfilePageState extends State<ProfilePage> {
     myFocusNodeBossLastName.dispose();     
     myFocusNodeBossBuisnessName.dispose(); 
     myFocusNodeBossPlace.dispose();
+    _switchAnimController.dispose();
     _pageController?.dispose();
     super.dispose();
   }
   int _tLength = 2;
+  int _iTest =0;
   @override
   void initState() {
     super.initState();
-    setState(() {
-         
-        });
 
+    _switchAnimController = AnimationController(
+      duration: Duration(milliseconds: 300),
+      vsync: this,
+    )..addListener((){
+        this.setState(() {});
+      })..addStatusListener((status){
+        // if (status == AnimationStatus.completed) {
+        //   _switchAnimController.reverse();
+        // } else if (status == AnimationStatus.dismissed) {
+        //   _switchAnimController.forward();
+        // }
+    });
+    
+    _switchAnimCurve = new Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(
+      CurvedAnimation(
+        parent: _switchAnimController,
+          curve: Interval(
+            0.0, 1.0,
+          curve: Curves.easeInOut,
+        ),
+      ),
+    );
+    //_switchAnim = _switchAnimCurve.animate(_switchAnimController);
+    _switchAnimController.forward(); 
+    //_switchAnimCurve = CurvedAnimation(parent: _switchAnimController, curve: Curves.elasticInOut);
     var resFuture = _services.getFieldDetails();
     resFuture.then((res) {
       if ((res["success"] == "true") || (res["success"] == true)) {
-        _workerDetails = new WorkerDetails();
         _workerDetails._firstName = res["firstName"];
         _workerDetails._lastName = res["lastName"];
         _workerDetails._lat = res["lat"];
@@ -683,10 +867,10 @@ class _ProfilePageState extends State<ProfilePage> {
         if ((res["success"] == "true") || (res["success"] == true)) {
           setState(() {
             _lPossibleOccupation = fixEncoding(res["possibleFields"]);
-            var lSelectedOccupation = fixEncoding(res["pickedFields"]);
+            _workerDetails._lOccupationFieldListString = fixEncoding(res["pickedFields"]);
             _colorOccupation = new List<Color>.filled(_lPossibleOccupation.length, uncheckedColor);
             _selectedOccupation = new List<bool>.filled(_lPossibleOccupation.length, false);
-            lSelectedOccupation.forEach((e) {
+            _workerDetails._lOccupationFieldListString.forEach((e) {
                 int i = _lPossibleOccupation.indexOf(e);
                 if (i >= 0) {
                   _selectedOccupation[i] = true;
@@ -702,8 +886,6 @@ class _ProfilePageState extends State<ProfilePage> {
     var resFutureBoss = _services.getBossFieldDetails();
     resFutureBoss.then((res){
         if ((res["success"] == "true") || (res["success"] == true)) {
-          _bossDetails = new BossDetails();
-
           _bossDetails._firstName = res["firstName"];
           _bossDetails._lastName = res["lastName"];
           _bossDetails._buisnessName = res["buisnessName"];
@@ -805,14 +987,15 @@ class _ProfilePageState extends State<ProfilePage> {
           
           _heightImage = h * 0.15;
           _heightSwitch = h * 0.05;
-          _heightMain = h * 0.8;
+          _widthSwitch = _heightSwitch*10;
+          _heightMain = h * 0.75;
           });
           String fileName = Singleton().persistentState.getString('profilePic');
           
           if (fileName == null){
-            _image = new Image.asset('assets/img/no_portrait.png', fit: BoxFit.scaleDown, width: w, height: _heightImage);     
+            _image = new Image.asset('assets/img/no_portrait.png', fit: BoxFit.cover, width: w, height: _heightImage);     
           } else {
-            _image = Image.file(File(fileName), fit: BoxFit.scaleDown, width: w, height: _heightImage);
+            _image = Image.file(File(fileName), fit: BoxFit.cover, width: w, height: _heightImage);
           }
           
         });
@@ -862,33 +1045,82 @@ class _ProfilePageState extends State<ProfilePage> {
     FocusScope.of(context).requestFocus(new FocusNode());
     _scaffoldKey.currentState?.removeCurrentSnackBar();
     _scaffoldKey.currentState.showSnackBar(new SnackBar(
-      content: new Text(
+      content: new Directionality(
+        textDirection: TextDirection.rtl,
+        child : new Card(child: new Text(
         value,
         textAlign: TextAlign.center,
         style: TextStyle(
             color: Colors.white,
             fontSize: 16.0,
             fontFamily: "WorkSansSemiBold"),
-      ),
+      ))),
       backgroundColor: Color(0xFF6aa1c),
       duration: Duration(seconds: 3),
     ));
   }
-
+  TabIndicationPainterNoPageControllerListener _tabIndicationPainterNoPageControllerListener = new TabIndicationPainterNoPageControllerListener(iPos:0, nPages:2);
+  AnimationController _switchAnimController;
+  Animation _switchAnim;
+  //CurvedAnimation _switchAnimCurve;
+  Animation<double> _switchAnimCurve;
+  double switchAnimCurveValue() {
+    double delta = 0.1*_widthSwitch;
+    //double switchAnimCurveValue_ = _switchAnimCurve.value * 2 - 1.0 + (_widthSwitch/2)/MediaQuery.of(context).size.width;
+    double switchAnimCurveValue_Boss_Pos  = -1.0 + (_widthSwitch + delta)/MediaQuery.of(context).size.width;
+    double switchAnimCurveValue_Worker_Pos = 1.0;
+    double pos = _switchAnimCurve.value*switchAnimCurveValue_Boss_Pos + (1-_switchAnimCurve.value)*switchAnimCurveValue_Worker_Pos - 1.0;
+    print("pos - $pos org - ${_switchAnimCurve.value}"); 
+    return pos;
+    //print("switchAnimCurveValueModified - $switchAnimCurveValue_Boss org - ${_switchAnimCurve.value}");
+    //return _bBossMode?switchAnimCurveValue_Boss: 0.0;
+  }
   Widget _buildSwitchBar(BuildContext context) {
-    var widthSwitch = _heightSwitch * 10.0;
+    
     return Container(
-      width: widthSwitch,
+      width: _widthSwitch,
       height: _heightSwitch,
       decoration: BoxDecoration(
         color: Color(0x552B2B2B),
         borderRadius: BorderRadius.all(Radius.circular(25.0)),
       ),
-      child: CustomPaint(
-        painter: TabIndicationPainter(dxTarget : (widthSwitch/2), radius : (_heightSwitch/2), dy : (_heightSwitch/2), dxEntry : 0.0, color: ZarizTheme.Colors.zarizGradientEnd.value, pageController: _pageController),
-        child: Row(
+      child: new Stack(
+        fit:StackFit.expand,
+  //             alignment: Alignment.topCenter,
+  //             overflow: Overflow.visible,
+              children: <Widget>[
+                new FractionallySizedBox(
+                  heightFactor: 1.0,
+                  widthFactor: 0.2,
+                  alignment: new Alignment(switchAnimCurveValue() , 0.0),
+                 //PositionedTransition(rect: switchAnimation, 
+                 child: new CustomPaint(
+        painter: TabIndicationPainterNoPageController(
+          dxTarget : 0.0,
+          radius : (_heightSwitch/2), 
+          dy : (_heightSwitch/2), 
+          dxEntry : (_widthSwitch/2), 
+          color: ZarizTheme.Colors.zarizGradientEnd.value,
+          listener: _tabIndicationPainterNoPageControllerListener),
+        
+      )), Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Widget>[
+            Expanded(
+              child: FlatButton(
+                splashColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                onPressed: _onBossButtonPress,
+                child: Text(
+                  "מעסיק",
+                  style: TextStyle(
+                      color: left,
+                      fontSize: 16.0,
+                      fontFamily: "WorkSansSemiBold"),
+                ),
+              ),
+            ),
+            //Container(height: 33.0, width: 1.0, color: Colors.white),
             Expanded(
               child: FlatButton(
                 splashColor: Colors.transparent,
@@ -901,89 +1133,83 @@ class _ProfilePageState extends State<ProfilePage> {
                       fontSize: 16.0,
                       fontFamily: "WorkSansSemiBold"),
                 ),
-              ),
-            ),
-            //Container(height: 33.0, width: 1.0, color: Colors.white),
-            Expanded(
-              child: FlatButton(
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                onPressed: _onBossButtonPress,
-                child: Text(
-                  "מעביד",
-                  style: TextStyle(
-                      color: left,
-                      fontSize: 16.0,
-                      fontFamily: "WorkSansSemiBold"),
-                ),
+                
               ),
             ),
           ],
         ),
-      ),
+      //)
+      ]),
     );
   }
   bool _bBossMode = false;
+  bool _bJobMenu = false;
+  bool _bShrinkJobMenu = false;
   void _onWorkerButtonPress() {
     setState((){
       _bBossMode = false;
+      _tabIndicationPainterNoPageControllerListener.iPos = 0;
+      _switchAnimController.forward();
     });
-    _pageController.animateToPage(0,
-        duration: Duration(milliseconds: 500), curve: Curves.decelerate);
+    //_pageController .jumpToPage(0);
+
+    // _pageController.animateToPage(0,
+    //     duration: Duration(milliseconds: 500), curve: Curves.decelerate);
   }
   bool _bIsLoadingPlaces = false;
   void _onBossButtonPress() {
     setState((){
       _bBossMode = true;
+      _switchAnimController.reverse();
     });
-    _pageController?.animateToPage(1,
-        duration: Duration(milliseconds: 500), curve: Curves.decelerate);
+     _tabIndicationPainterNoPageControllerListener.iPos = 1;
+    //_pageController?.animateToPage(1,
+    //    duration: Duration(milliseconds: 500), curve: Curves.decelerate);
   }
-  Widget _createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData, {keyboardType=TextInputType.text, maxLines = 1, validator=null}) {
-    return new Padding(
-      padding: EdgeInsets.only(
-          top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-      child: TextField(
-        focusNode: focusNode,
-        controller: controller,
-        keyboardType: keyboardType,
-        maxLines: maxLines,
-        inputFormatters: validator==null?null:[validator],
-        style: TextStyle(
-            fontFamily: "WorkSansSemiBold",
-            fontSize: 16.0,
-            color: Colors.black),
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          focusedBorder : InputBorder.none,
-          icon: Icon(
-            iconData,
-            size: 22.0,
-            color: Colors.black87,
-          ),
-          hintText: hintText,
-          hintStyle: TextStyle(
-              fontFamily: "WorkSansSemiBold", fontSize: 17.0),
-          
+  
+   void _showItemDialog(Map<String, dynamic> message) {
+    showDialog<bool>(
+      context: context,
+      builder: (_) => _buildDialog(context, _itemForMessage(message)),
+    ).then((bool shouldNavigate) {
+      if (shouldNavigate == true) {
+        _navigateToItemDetail(message);
+      }
+    });
+  }
+   Widget _buildDialog(BuildContext context, Item item) {
+    return AlertDialog(
+      content: Text("Item ${item.itemId} has been updated"),
+      actions: <Widget>[
+        FlatButton(
+          child: const Text('CLOSE'),
+          onPressed: () {
+            Navigator.pop(context, false);
+          },
         ),
-      ),
+        FlatButton(
+          child: const Text('SHOW'),
+          onPressed: () {
+            Navigator.pop(context, true);
+          },
+        ),
+      ],
     );
+  }
+  void _navigateToItemDetail(Map<String, dynamic> message) {
+    final Item item = _itemForMessage(message);
+    // Clear away dialogs
+    Navigator.popUntil(context, (Route<dynamic> route) => route is PageRoute);
+    if (!item.route.isCurrent) {
+      Navigator.push(context, item.route);
+    }
   }
   Widget _buildWorkerDetails1(BuildContext context) {
       return new Directionality(
         textDirection: TextDirection.rtl,
-        child : new Container(
-          decoration: new BoxDecoration(
-            gradient: new LinearGradient(
-                colors: [
-                  ZarizTheme.Colors.zarizGradientStart,
-                  ZarizTheme.Colors.zarizGradientEnd
-                ],
-                begin: const FractionalOffset(0.0, 0.0),
-                end: const FractionalOffset(1.0, 1.0),
-                stops: [0.0, 1.0],
-                tileMode: TileMode.clamp),
-          ),
+        child : new AnimatedContainer(
+          duration: new Duration(milliseconds:500),
+          decoration: decorationBossWorker(context, false),
           padding: EdgeInsets.only(top: 23.0),
           
           child : Card
@@ -999,13 +1225,13 @@ class _ProfilePageState extends State<ProfilePage> {
               child: new Column( children: <Widget>[
                   Padding(
                     padding: EdgeInsets.only(
-                        top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                        top: 5.0, bottom: 5.0, left: 25.0, right: 25.0),
                     child: 
                     new Row(
                       children:<Widget>
                       [ 
-                        new Flexible(child: _createTextField("פרטי", myFocusNodeFirstName, _controllerWorkerFirstName, FontAwesomeIcons.userAlt)),
-                        new Flexible(child: _createTextField("משפחה", myFocusNodeLastName, _controllerWorkerLastName, FontAwesomeIcons.users)),
+                        new Flexible(child: createTextField("פרטי", myFocusNodeFirstName, _controllerWorkerFirstName, FontAwesomeIcons.userAlt)),
+                        new Flexible(child: createTextField("משפחה", myFocusNodeLastName, _controllerWorkerLastName, FontAwesomeIcons.users)),
                       ]
                     ),
                   ),
@@ -1017,11 +1243,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   new Row(
                     children:<Widget>
                     [ 
-                      new Flexible(child: _createTextField("מקום", myFocusNodePlace, _controllerWorkerPlace, FontAwesomeIcons.mapMarker)),
+                      new Flexible(child: createTextField("מקום", myFocusNodePlace, _controllerWorkerPlace, FontAwesomeIcons.mapMarker)),
                       new Flexible(
                           child: Padding(
                             padding: EdgeInsets.only(
-                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                                top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
                             child: new SingleChildScrollView
                             (
                               child: new Theme(
@@ -1055,18 +1281,19 @@ class _ProfilePageState extends State<ProfilePage> {
                     height: 1.0,
                     color: Colors.grey[400],
                   ),
-                  _createTextField("מרחק", myFocusNodeRadius, _controllerWorkerRadius, FontAwesomeIcons.route, keyboardType: TextInputType.number),
+                  createTextField("מרחק", myFocusNodeRadius, _controllerWorkerRadius, FontAwesomeIcons.route, keyboardType: TextInputType.number),
                   Container(
                     width: 250.0,
                     height: 1.0,
                     color: Colors.grey[400],
                   ),
-                  _createTextField("שכר", myFocusNodeWage, _controllerWorkerWage, FontAwesomeIcons.shekelSign, keyboardType: TextInputType.number),
+                  createTextField("שכר", myFocusNodeWage, _controllerWorkerWage, FontAwesomeIcons.shekelSign, keyboardType: TextInputType.number),
                   Container(
                     width: 250.0,
                     height: 1.0,
                     color: Colors.grey[400],
                   ),
+                  occupationChipsBuild(),
               ]
             )
           )
@@ -1075,36 +1302,70 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
   Widget _buildWorkerDetails2(BuildContext context) {
-      return new Directionality(
-        textDirection: TextDirection.rtl,
-        child : new Container(
-          decoration: new BoxDecoration(
-                  gradient: new LinearGradient(
-                      colors: [
-                        ZarizTheme.Colors.zarizGradientStart,
-                        ZarizTheme.Colors.zarizGradientEnd
-                      ],
-                      begin: const FractionalOffset(0.0, 0.0),
-                      end: const FractionalOffset(1.0, 1.0),
-                      stops: [0.0, 1.0],
-                      tileMode: TileMode.clamp),
-                ),
-          //padding: EdgeInsets.only(top: 23.0),
-          child:
-                  
-                      new SingleChildScrollView(scrollDirection: Axis.vertical,
-                      child:createMultiGridView())
-
-                  
-                
-              )    
-          
-          );
-             
-      
-    }
+    return new Directionality(
+      textDirection: TextDirection.rtl,
+      child : new AnimatedContainer(
+        duration: new Duration(milliseconds:500),
+        decoration: decorationBossWorker(context, false),
+        //padding: EdgeInsets.only(top: 23.0),
+        child:  new SingleChildScrollView(scrollDirection: Axis.vertical,
+          child: createMultiGridView()
+        )
+      )    
+        
+    );
+  }
   
   final ScrollController _scrollController = ScrollController();
+
+
+  List<String> _filters = <String>[];
+  Iterable<Widget> get occupationWidget sync* {
+    final Color uncheckedColor = ZarizTheme.Colors.zarizGradientEnd2.withAlpha(60);
+    for (String occupation in _lPossibleOccupation) {
+      yield Padding(
+        padding: const EdgeInsets.all(4.0),
+        child: FilterChip(
+          shape:  RoundedRectangleBorder(
+                    side: new BorderSide(
+                      color: _workerDetails==null?uncheckedColor:_workerDetails._lOccupationFieldListString==null?uncheckedColor:
+                          _workerDetails._lOccupationFieldListString.contains(occupation)?checkedColor:uncheckedColor, 
+                      width: 6.0),
+                      borderRadius: BorderRadius.circular(8.0),
+            ),
+          label: Text(occupation),
+          selected: (_workerDetails==null)?false:(_workerDetails._lOccupationFieldListString==null)?false:_workerDetails._lOccupationFieldListString.contains(occupation),
+          backgroundColor: ZarizTheme.Colors.zarizGradientEnd2.withAlpha(60),
+          selectedColor: ZarizTheme.Colors.zarizGradientEnd2.withAlpha(60),
+          onSelected: (bool value) {
+            setState(() {
+              if (value) {
+                 _workerDetails._lOccupationFieldListString.add(occupation);
+              } else {
+                _workerDetails._lOccupationFieldListString.removeWhere((String name) {
+                  return name == occupation;
+                });
+              }
+              _bWorkerIsUpdated = false;
+            });
+          },
+        ),
+      );
+    }
+  }
+
+  Widget occupationChipsBuild() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        createTitle("בחר תחומי עיסוק"),
+        Wrap(
+          children: occupationWidget.toList(),
+        ),
+      ],
+    );
+  }
+
 
   GridView createMultiGridView(){
     var gridView = new GridView.builder(
@@ -1153,7 +1414,11 @@ class _ProfilePageState extends State<ProfilePage> {
         });
         return gridView;
   }
-
+  Size getSize(GlobalKey key) {
+      final RenderBox renderBoxRed = key.currentContext.findRenderObject();
+      return (renderBoxRed.size);
+      
+  }
   Widget _buildWorkerCarousel(BuildContext context) {
     var c = new CarosuelState(pages : <Widget>[
       new ConstrainedBox(
@@ -1173,7 +1438,7 @@ class _ProfilePageState extends State<ProfilePage> {
   
   
   List<DropdownMenuItem<String>> _lOccupationDropDown = [];
-    
+  List<GlobalKey> _lKeyForJobDiscription;
   Widget jobPage(BuildContext context, int index) {
     //bool bIsEmptyEntry = index==_lJobs.length - 1;
     bool bIsEmptyEntry = _lJobs.length == 0;
@@ -1233,125 +1498,128 @@ class _ProfilePageState extends State<ProfilePage> {
         child: new Text(f.toString()),
       )
     ));
+    _lKeyForJobDiscription[index]=new GlobalKey(debugLabel: "keyForJobDiscription_$index");
     return new ConstrainedBox(
        constraints: const BoxConstraints.expand(),
-      child:new Directionality(
+      child:new SingleChildScrollView(child: new Directionality(
         textDirection: TextDirection.rtl,
-        child : new Container(
-          decoration: new BoxDecoration(
-          gradient: new LinearGradient(
-                colors: [
-                  ZarizTheme.Colors.zarizGradientStart,
-                  ZarizTheme.Colors.zarizGradientEnd
-                ],
-                begin: const FractionalOffset(0.0, 0.0),
-                end: const FractionalOffset(1.0, 1.0),
-                stops: [0.0, 1.0],
-                tileMode: TileMode.clamp),
-          ),
-          padding: EdgeInsets.only(top: 23.0),
-          child: new SingleChildScrollView (
-            child: new Column(
+        child : new AnimatedContainer(
+          duration: new Duration(milliseconds:500),
+          decoration: decorationBossWorker(context, true),
+          padding: EdgeInsets.only(top: 5.0),
+          //child: new SingleChildScrollView (
+            child: new Stack(
             children: 
-                [
-            Card(
-              elevation: 2.0,
-              color: Colors.white54,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              child: new SingleChildScrollView (
-                child: bIsEmptyEntry?new Container():new Column(
-                children: 
-                [
-                  Text("עבודה ${index+1} מתוך ${_lJobs.length}"),
-                  Container(
-                    width: 250.0,
-                    height: 1.0,
-                    color: Colors.grey[400],
-                  ),
-                  _createTextField("תאור מפורט של העבודה בכמה מילים", job.ui.fnDiscription, job.ui.conDiscription, Icons.edit, keyboardType: TextInputType.multiline, maxLines: 3),
-                  Container(
-                    width: 250.0,
-                    height: 1.0,
-                    color: Colors.grey[400],
-                  ),
-                  new Row(
-                      children:<Widget> [ 
-                        new Flexible(child: _createTextField("מקום", job.ui.fnPlace, job.ui.conPlace, FontAwesomeIcons.mapMarker)),
-                        new Flexible(
-                          child: Padding(
-                            padding: EdgeInsets.only(top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                            child: new SingleChildScrollView (
-                              child: new Theme(
-                                data: new ThemeData(
-                                  fontFamily: "WorkSansSemiBold", 
-                                  canvasColor: Colors.white54, //my custom color
-                                ),
-                                child: new DropdownButton(
-                                  iconSize: 30.0,
-                                  items: _lJobsDropDownList,
-                                  onChanged: ((s) {
-                                    setState(() {
-                                      job.ui.conPlace.text = s;
-                                      setPlaceLatLng(s, true, jobIndex : index);
-                                      _idJobIsUpdated = job.details._jobId;
-                                      _iJobIsUpdated = index;
-                                      
-                                    }); 
-                                  }),
+            [
+              Column(children: <Widget>[
+              createTitle("עבודה ${index+1} מתוך ${_lJobs.length}"),
+               AnimatedContainer(
+                 duration: new Duration(milliseconds: 500),
+                 curve: Curves.elasticInOut,
+               height: _bShrinkJobMenu?MediaQuery.of(context).size.height*0.12:MediaQuery.of(context).size.height*0.55,
+               child: Card(
+                elevation: 2.0,
+                color: Colors.white54,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                child: new SingleChildScrollView (
+                  child: bIsEmptyEntry?new Container():new Column(
+                    children: 
+                    [
+                      Container(
+                        width: 250.0,
+                        height: 1.0,
+                        color: Colors.grey[400],
+                      ),
+                      new Container(key: _lKeyForJobDiscription[index], child: createTextField("תאור מפורט של העבודה בכמה מילים",
+                        job.ui.fnDiscription, job.ui.conDiscription, Icons.edit, keyboardType: TextInputType.multiline, maxLines: 3)),
+                      Container(
+                        width: 250.0,
+                        height: 1.0,
+                        color: Colors.grey[400],
+                      ),
+                      new Row(
+                          children:<Widget> [ 
+                            new Flexible(child: createTextField("מקום", job.ui.fnPlace, job.ui.conPlace, FontAwesomeIcons.mapMarker)),
+                            new Flexible(
+                              child: Padding(
+                                padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                                child: new SingleChildScrollView (
+                                  child: new Theme(
+                                    data: new ThemeData(
+                                      fontFamily: "WorkSansSemiBold", 
+                                      canvasColor: Colors.white54, //my custom color
+                                    ),
+                                    child: new DropdownButton(
+                                      iconSize: 30.0,
+                                      items: _lJobsDropDownList,
+                                      onChanged: ((s) {
+                                        setState(() {
+                                          job.ui.conPlace.text = s;
+                                          setPlaceLatLng(s, true, jobIndex : index);
+                                          _idJobIsUpdated = job.details._jobId;
+                                          _iJobIsUpdated = index;
+                                          
+                                        }); 
+                                      }),
+                                    )
+                                  ),
+                                  scrollDirection: Axis.horizontal,
+                                ) 
+                                
+                              )
+                            )
+                          ]
+                        ),
+                        Container(
+                        width: 250.0,
+                        height: 1.0,
+                        color: Colors.grey[400],
+                      ),
+                      createTextField("שכר", job.ui.fnWage, job.ui.conWage, FontAwesomeIcons.shekelSign, keyboardType: TextInputType.number),
+                      new Row(
+                        children:<Widget>
+                        [ 
+                          new Flexible(child: createTextField("בחר תחום", job.ui.fnnOccupationList, job.ui.connOccupationList, FontAwesomeIcons.hammer)),
+                          new Flexible(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                  top: 10.0, bottom: 10.0),
+                                
+                                child: new SingleChildScrollView (
+                                  child: new Theme(
+                                    data: new ThemeData(
+                                      fontFamily: "WorkSansSemiBold", 
+                                      canvasColor: Colors.white54, //my custom color
+                                    ),
+                                    child: new DropdownButton(
+                                      iconSize: 30.0,
+                                      items: _lOccupationDropDown,
+                                      onChanged: ((s)
+                                      {
+                                        job.ui.connOccupationList.text = s;
+                                        _iJobIsUpdated = index;
+                                        _idJobIsUpdated = job.details._jobId;
+                                      }),
+                                    )
+                                  ),
                                 )
-                              ),
-                              scrollDirection: Axis.horizontal,
-                            ) 
-                            
-                          )
-                        )
-                      ]
-                    ),
-                    Container(
-                    width: 250.0,
-                    height: 1.0,
-                    color: Colors.grey[400],
-                  ),
-                  _createTextField("שכר", job.ui.fnWage, job.ui.conWage, FontAwesomeIcons.shekelSign, keyboardType: TextInputType.number),
-                  new Row(
-                            children:<Widget>
-                            [ 
-                              new Flexible(child: _createTextField("בחר תחום", job.ui.fnnOccupationList, job.ui.connOccupationList, FontAwesomeIcons.hammer)),
-                              new Flexible(
-                                child: Padding(
-                                  padding: EdgeInsets.only(
-                                      top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                                    
-                                    
-                                      child: new Theme(
-                                        data: new ThemeData(
-                                          fontFamily: "WorkSansSemiBold", 
-                                          canvasColor: Colors.white54, //my custom color
-                                        ),
-                                        child: new DropdownButton(
-                                          iconSize: 30.0,
-                                          items: _lOccupationDropDown,
-                                          onChanged: ((s)
-                                          {
-                                            job.ui.connOccupationList.text = s;
-                                            _iJobIsUpdated = index;
-                                            _idJobIsUpdated = job.details._jobId;
-                                          }),
-                                        )
-                                      ),
-                                      
-                                  )
-                                )
-                            ]
-                          ),
-                  _createTextField("מספר עובדים", job.ui.fnnWorkers, job.ui.connWorkers, FontAwesomeIcons.peopleCarry, keyboardType: TextInputType.number, validator: new BlacklistingTextInputFormatter(new RegExp('[\\.|\\,|\\-|\\ ]'))),
-                  
-                ]
+                              )
+                            )
+                        ]
+                      ),
+                      createTextField("מספר עובדים", job.ui.fnnWorkers, job.ui.connWorkers, FontAwesomeIcons.peopleCarry, keyboardType: TextInputType.number, validator: new BlacklistingTextInputFormatter(new RegExp('[\\.|\\,|\\-|\\ ]'))),    
+                    ]
+                    
               ))
-            ), 
-            Container(child: new Row(
+            )),
+            _bShrinkJobMenu?_buildBossJobsLivePage(context, job.details._jobId):new Container(),
+            Container(height: 50.0,),]), 
+            
+            Positioned(bottom:0.0, left:0.0, right:0.0, 
+              child:
+              Container(child: new Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: <Widget>[
                     Column(children: [ 
@@ -1359,22 +1627,17 @@ class _ProfilePageState extends State<ProfilePage> {
                       fillColor: Colors.green[300],
                       splashColor: Colors.white,
                       child: new Container(
-                        decoration: new BoxDecoration(
-                                                  
-                        shape: BoxShape.circle,// You can use like this way or like the below line
-                        //borderRadius: new BorderRadius.circular(30.0),
-                        color: Colors.green[300],
-                        
-                      ),
-                      child:  new Icon(Icons.add), 
+                        decoration: new BoxDecoration(                          
+                          shape: BoxShape.circle,// You can use like this way or like the below line
+                          //borderRadius: new BorderRadius.circular(30.0),
+                          color: Colors.green[300],
+                        ),
+                        child:  new Icon(Icons.add), 
                       ),                          
                       onPressed: ((){
-                        
-                          setState((){
-                            _lJobs.add(new JobsContext(new JobsDetails()));
-                            _jbcIndex = _lJobs.length - 1;
-                          });
-                        
+                        setState((){
+                          _lJobs.add(new JobsContext(new JobsDetails()));
+                        });
                       }),
                       shape: new CircleBorder(),                          
                     ),  
@@ -1384,7 +1647,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     RawMaterialButton(
                       fillColor: Colors.blue[300],
                       splashColor: Colors.white,
-                      child: new Container(
+                       child: new Container(
                         decoration: new BoxDecoration(
                                                   
                         shape: BoxShape.circle,// You can use like this way or like the below line
@@ -1395,16 +1658,31 @@ class _ProfilePageState extends State<ProfilePage> {
                       child:  new Icon(FontAwesomeIcons.users), 
                       ),                          
                       onPressed: ((){
-                        
-                          setState((){
-                            _lJobs.add(new JobsContext(new JobsDetails()));
-                            _jbcIndex = _lJobs.length - 1;
+                        if (_bShrinkJobMenu) {
+                          setState(() {
+                            _bShrinkJobMenu = false;
                           });
-                        
+                        } else {
+                        print("index - $index");
+                        _currentJobId = job.details._jobId;
+                          _services.queryJob(job.details._jobId).then((res){
+                            if ((res["success"] == "true") || (res["success"] == true)) {
+                              //Future.delayed(new Duration(seconds:4), () => 
+                              //Navigator.push(
+                              //  context,
+                              //  MaterialPageRoute(builder: (context) => _buildBossJobsLivePage(context, _currentJobId)),
+                              //);
+                              //);
+                              setState(() {
+                                _bShrinkJobMenu = true;
+                              });
+                            }                   
+                          });
+                        }
                       }),
                       shape: new CircleBorder(),                          
                     ),  
-                    Text('עובדים' ),
+                    Text('עובדים'),
                     ]),
                     bIsEmptyEntry? Container() : Column(children: [ RawMaterialButton(
                       fillColor: _lJobsIDsMarkedForDeletion.contains(_lJobs[index].details._jobId)?Colors.red[300]:Colors.grey[300],
@@ -1437,22 +1715,25 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),  
                     bIsEmptyEntry? Container():Text('מחק עבודה'),                  
 
-                  ])])),
-            ]))  
+                  ])]))),//),
+            ])//)  
           )
-        )
+        ))
       );
   }
 
-  int _jbcIndex = 0;
+
+  String _currentJobId = "";
   Widget _buildJobsCarousel(BuildContext context, List<Widget> jbl) {
+    _lKeyForJobDiscription = new List<GlobalKey>(_lJobs.length + 1);
     if (_lJobs.length == 0) {
       jbl.add(jobPage(context, 0));
     } else {
-    for (int i=0; i < _lJobs.length; i++) {
-            jbl.add(jobPage(context, i));
+      for (int i=0; i < _lJobs.length; i++) {
+        jbl.add(jobPage(context, i));
+      }
     }
-    }
+    
     var c = new CarosuelState(pages : jbl);
     return c.buildCarousel(context, _heightMain);
   }
@@ -1461,7 +1742,10 @@ class _ProfilePageState extends State<ProfilePage> {
     jbl.add(_buildBossDetails1(context));
     return _buildJobsCarousel(context, jbl);
   }
-  
+  Widget _buildMainJobsCarousel(BuildContext context) {
+    List<Widget> jbl = [];
+    return _buildJobsCarousel(context, jbl);
+  }
   // Widget _buildJobsDetailsList(BuildContext context) {
   //   return new Directionality(
   //     textDirection: TextDirection.rtl,
@@ -1532,106 +1816,218 @@ class _ProfilePageState extends State<ProfilePage> {
   //   );
   // }
   Widget _buildBossDetails1(BuildContext context) {
-    return new Directionality(
+    return (new Directionality(
         textDirection: TextDirection.rtl,
-        child : new Container(
-          decoration: new BoxDecoration(
-                  gradient: new LinearGradient(
-                      colors: [
-                        ZarizTheme.Colors.zarizGradientStart,
-                        ZarizTheme.Colors.zarizGradientEnd
-                      ],
-                      begin: const FractionalOffset(0.0, 0.0),
-                      end: const FractionalOffset(1.0, 1.0),
-                      stops: [0.0, 1.0],
-                      tileMode: TileMode.clamp),
-                ),
+        child : new AnimatedContainer(
+          duration: new Duration(milliseconds:500),
+          decoration: decorationBossWorker(context, true),
           padding: EdgeInsets.only(top: 23.0),
-          child: Column(
-            children: <Widget>[
-              Stack(
-                alignment: Alignment.topCenter,
-                overflow: Overflow.visible,
-                children: <Widget>[
-                  Card(
-                    elevation: 2.0,
-                    color: Colors.white54,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
+          child: Card(
+            elevation: 2.0,
+            color: Colors.white54,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+              child: SingleChildScrollView(
+            //   //width: MediaQuery.of(context).size.width * 5 / 6,
+            //   //height: MediaQuery.of(context).size.height * 2,
+                child: new Column( children: <Widget>[
+                  Padding(
+                    padding: EdgeInsets.only(
+                        top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
+                    child: 
+                    new Row(
+                      children:<Widget>
+                      [ 
+                        new Flexible(child: createTextField("פרטי", myFocusNodeBossFirstName, _controllerWorkerFirstName, FontAwesomeIcons.userAlt)),
+                        new Flexible(child: createTextField("משפחה", myFocusNodeBossLastName, _controllerWorkerLastName, FontAwesomeIcons.users)),
+                        
+                      ]
                     ),
-                     child: Container(
-                    //   //width: MediaQuery.of(context).size.width * 5 / 6,
-                    //   //height: MediaQuery.of(context).size.height * 2,
-                       child: new Column( children: <Widget>[
-                          Padding(
-                            padding: EdgeInsets.only(
-                                top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                            child: 
-                            new Row(
-                              children:<Widget>
-                              [ 
-                                new Flexible(child: _createTextField("פרטי", myFocusNodeBossFirstName, _controllerWorkerFirstName, FontAwesomeIcons.userAlt)),
-                                new Flexible(child: _createTextField("משפחה", myFocusNodeBossLastName, _controllerWorkerLastName, FontAwesomeIcons.users)),
-                                
-                              ]
-                            ),
-                          ),
-                          Container(
-                            width: 250.0,
-                            height: 1.0,
-                            color: Colors.grey[400],
-                          ),
-                          new SingleChildScrollView(
-                             child: _createTextField("שם העסק", myFocusNodeBossBuisnessName, _controllerBossBuisnessName, FontAwesomeIcons.userAlt),
-                          ),
-                                                 
-                          new Row(
-                            children:<Widget>
-                            [ 
-                              new Flexible(child: _createTextField("מקום", myFocusNodeBossPlace, _controllerBossPlace, FontAwesomeIcons.mapMarker)),
-                              new Flexible(
-                                child: Padding(
-                                  padding: EdgeInsets.only(
-                                      top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                                    child: new SingleChildScrollView
-                                    (
-                                      child: new Theme(
-                                        data: new ThemeData(
-                                          fontFamily: "WorkSansSemiBold", 
-                                          canvasColor: Colors.white54, //my custom color
-                                        ),
-                                        child: new DropdownButton(
-                                          iconSize: 30.0,
-                                          items: _lPlacesBossDropDownList,
-                                          onChanged: ((s)
-                                          {
-                                            _controllerBossPlace.text = s;
-                                            _bWorkerIsUpdated = false;
-                                            setPlaceLatLng(s, true);
-                                          }),
-                                        )
-                                      ),
-                                      scrollDirection: Axis.horizontal, 
-                                    )
-                                  )
-                                )
-                            ]
-                          ),
-                          Container(
-                            width: 250.0,
-                            height: 1.0,
-                            color: Colors.grey[400],
-                          ),
-                        ]
-                      )
-                    )
                   ),
-                ],
-              ),
-            ],
-          ),
-        ),          
+                  Container(
+                    width: 250.0,
+                    height: 1.0,
+                    color: Colors.grey[400],
+                  ),
+                  new SingleChildScrollView(
+                      child: createTextField("שם העסק", myFocusNodeBossBuisnessName, _controllerBossBuisnessName, FontAwesomeIcons.userAlt),
+                  ),
+                                          
+                  new Row(
+                    children:<Widget>
+                    [ 
+                      new Flexible(child: createTextField("מקום", myFocusNodeBossPlace, _controllerBossPlace, FontAwesomeIcons.mapMarker)),
+                      new Flexible(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                              top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
+                            child: new SingleChildScrollView
+                            (
+                              child: new Theme(
+                                data: new ThemeData(
+                                  fontFamily: "WorkSansSemiBold", 
+                                  canvasColor: Colors.white54, //my custom color
+                                ),
+                                child: new DropdownButton(
+                                  iconSize: 30.0,
+                                  items: _lPlacesBossDropDownList,
+                                  onChanged: ((s)
+                                  {
+                                    _controllerBossPlace.text = s;
+                                    _bWorkerIsUpdated = false;
+                                    setPlaceLatLng(s, true);
+                                  }),
+                                )
+                              ),
+                              scrollDirection: Axis.horizontal, 
+                            )
+                          )
+                        )
+                    ]
+                  ),
+                  Container(
+                    width: 250.0,
+                    height: 1.0,
+                    color: Colors.grey[400],
+                  ),
+                ]
+              ))
+            )         
+        )
+      )
+    );
+  }
+  Widget _buildBossJobsLivePage(BuildContext context, String jobID) {
+    JobsContext job;
+    _lJobs.forEach((j){
+      if (j.details._jobId==jobID) {
+        job=j;
+      }
+    });
+    if (job==null||job.lWorkersNotified==[])
+      return new Directionality(
+        textDirection: TextDirection.rtl,
+        child: createTitle("לא נמצאו עובדים"));
+
+    //return buildFrame(context, new Directionality(
+      return new Directionality(
+      textDirection: TextDirection.rtl,
+
+        child: new Stack(children: <Widget>[
+          //createTitle("${job.details._discription}"),
+          SingleChildScrollView(child: new ListView.builder( 
+            shrinkWrap: true,
+            padding: EdgeInsets.only(
+                  top: 20.0, bottom: 20.0, right: 25.0, left: 25.0),
+            itemCount: job.lWorkersNotified.length,
+            itemBuilder: (BuildContext context, int index) {
+              bool bResponded = false;
+              for(var w in job.lWorkersResponded) {
+                if (job.lWorkersNotified[index]._userID == w._userID) {
+                  bResponded = true;
+                  break;
+                }
+              }
+              bool bAuthorized = false;
+              for(var w in job.lWorkersAuthorized) {
+                if (job.lWorkersNotified[index]._userID == w._userID) {
+                  bAuthorized = true;
+                  break;
+                }
+              }
+
+              return   Card(elevation: 2.0,
+                color: Colors.white54,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),child: new Container(child: new Row(children: <Widget>[
+                RawMaterialButton(
+                  fillColor: bAuthorized? Colors.green:(bResponded? Colors.yellow:Colors.grey),
+                  splashColor: Colors.white,
+                  child: new Container(
+                    decoration: new BoxDecoration(                          
+                      shape: BoxShape.circle,
+                      color: bAuthorized? Colors.green:(bResponded? Colors.yellow:Colors.grey),
+                  ),
+                  child:  bAuthorized? new Icon(Icons.check):(bResponded? Icon(Icons.add):Icon(FontAwesomeIcons.question)),
+                  ), 
+                  onPressed: ((){
+                  }),
+                  shape: new CircleBorder(),
+                  
+                ),
+          
+                createTitle('${job.lWorkersNotified[index]._firstName} ${job.lWorkersNotified[index]._lastName}'),
+
+                
+              ])));
+            }
+          )),        
+        ]),
       );
+
+    //,new GlobalKey<ScaffoldState>());
+    //,_scaffoldKey);
+  } 
+
+  Widget _buildWorkersJobsLivePage(BuildContext context, ) {
+    return new Directionality(
+      textDirection: TextDirection.rtl,
+      child : new AnimatedContainer(
+          duration: new Duration(milliseconds:500),
+        decoration: decorationBossWorker(context, false),
+        padding: EdgeInsets.only(top: 23.0),
+        child: Column(
+          children: <Widget>[
+            Stack(
+              alignment: Alignment.topCenter,
+              overflow: Overflow.visible,
+              children: <Widget>[
+                 Stack(
+                    children: [
+                      SingleChildScrollView(child: new 
+                        ListView.builder( 
+                          shrinkWrap: true,
+                          padding: EdgeInsets.only(
+                                top: 20.0, bottom: 20.0, right: 25.0, left: 25.0),
+                          itemCount: _lJobs.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            return   Card(elevation: 2.0,
+                              color: Colors.white54,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),child: new Container(height:120.0, child: new Row(children: <Widget>[
+                              RawMaterialButton(
+                                fillColor: index!=_lJobs.length? Colors.green[300] :Colors.red[300],
+                                splashColor: Colors.white,
+                                child: new Container(
+                                  decoration: new BoxDecoration(                          
+                                    shape: BoxShape.circle,
+                                    color: Colors.green,
+                                ),
+                                child:  index!=_lJobs.length? new Icon(Icons.add) : new Icon(FontAwesomeIcons.trashAlt), 
+                                ), 
+                                onPressed: ((){
+                                }),
+                                shape: new CircleBorder(),
+                                
+                              ),
+                        
+                              createTitle('${_lJobs[index].details._discription}'),
+                            ])));
+                          }
+                        )
+                      ),
+                    ]
+                  ),
+                //),  
+              ],
+            )
+          ]
+        )
+      )
+    );
   } 
 }
 class InvertedCircleClipper extends CustomClipper<Path> {
