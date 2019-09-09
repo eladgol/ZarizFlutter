@@ -419,7 +419,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   GoogleMapsPlaces _placesAPI = new GoogleMapsPlaces(kGoogleApiKey);
 
   void setPlaceLatLng(String sPlace, bool bIsBoss, {int jobIndex=-1}) {
-    _placesAPI.searchByText(sPlace).then((a) {
+    _placesAPI.searchByText(sPlace, language : "iw").then((a) {
        if (a.results.length > 0) {
         setState(() {
           if (bIsBoss) {
@@ -953,7 +953,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           var lat = l["latitude"];
           var lng = l["longitude"];
           var loc = new Location(lat, lng);
-          var res = _placesAPI.searchNearbyWithRadius(loc, 1000.0);
+          var res = _placesAPI.searchNearbyWithRadius(loc, 1000.0, language: "iw");
           res.then((v){
             print(v.toString());
             if (v.status == "OK") {
@@ -1007,7 +1007,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           _bIsLoadingPlaces = true;
         });
         Location nearL = new Location(_currLocation.lat, _currLocation.lng);
-        _placesAPI.queryAutocomplete(t, location: nearL, radius: 300000.0).then((res){   
+        _placesAPI.queryAutocomplete(t, location: nearL, radius: 300000.0, language : "iw").then((res){   
           setState(() { 
             l.clear();
           });
@@ -1532,7 +1532,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                         height: 1.0,
                         color: Colors.grey[400],
                       ),
-                      new Container(key: _lKeyForJobDiscription[index], child: createTextField("תאור מפורט של העבודה בכמה מילים",
+                      new Container(child: createTextField("תאור מפורט של העבודה בכמה מילים",
                         job.ui.fnDiscription, job.ui.conDiscription, Icons.edit, keyboardType: TextInputType.multiline, maxLines: 3)),
                       Container(
                         width: 250.0,
@@ -1637,6 +1637,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                       onPressed: ((){
                         setState((){
                           _lJobs.add(new JobsContext(new JobsDetails()));
+                          _cs.setPage(0);
+
                         });
                       }),
                       shape: new CircleBorder(),                          
@@ -1722,7 +1724,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       );
   }
 
-
+  CarosuelState _cs;
+  int iCs = 0;
   String _currentJobId = "";
   Widget _buildJobsCarousel(BuildContext context, List<Widget> jbl) {
     _lKeyForJobDiscription = new List<GlobalKey>(_lJobs.length + 1);
@@ -1733,9 +1736,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         jbl.add(jobPage(context, i));
       }
     }
-    
-    var c = new CarosuelState(pages : jbl);
-    return c.buildCarousel(context, _heightMain);
+    if (_cs != null) {
+      iCs = (_cs.getCurrentPage(context)).round();
+    } else {
+      iCs = 0;
+    }
+    _cs = new CarosuelState(pages : jbl);
+    var carousel= _cs.buildCarousel(context, _heightMain);
+    _cs.setPage(0);
+    return carousel;
   }
   Widget _buildBossCarousel(BuildContext context) {
     List<Widget> jbl = [];

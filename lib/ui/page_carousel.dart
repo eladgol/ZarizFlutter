@@ -83,22 +83,41 @@ class CarosuelState {
   static const _kDuration = const Duration(milliseconds: 300);
 
   static const _kCurve = Curves.ease;
-
+  var currentPageValue = 0.0; 
+  PageView _pv;
   double getCurrentPage(BuildContext context) {
-    return this._controller.page;
+    try {
+      return currentPageValue;
+    } catch (e){
+      return 0.0;
+    }
+  }
+  void setPage(int page) {
+    try {
+    _controller.animateToPage(page, duration: _kDuration, curve:_kCurve );
+    } catch(e) {
+      
+    }
   }
   Widget buildCarousel(BuildContext context, double _height) {
-    return new Stack(
-          children: <Widget>[
-            new SizedBox(
-            height : _height,
-            child: new PageView.builder(
+    _controller.addListener((){
+      currentPageValue = _controller.page;
+      print("JobsPageCarouselValue $currentPageValue");
+    });
+    _pv = new PageView.builder(
               physics: new AlwaysScrollableScrollPhysics(),
               controller: _controller,
               itemBuilder: (BuildContext context, int index) {
                 return pages[index % pages.length];
-              },
-            )),
+              });
+    //_pv.onPageChanged
+
+    return new Stack(
+          children: <Widget>[
+            new SizedBox(
+            height : _height,
+            child: _pv,
+            )
            
             // new Positioned(
             //   top: 0.0,
