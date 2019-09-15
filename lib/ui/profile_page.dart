@@ -22,6 +22,9 @@ import 'package:flutter/rendering.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:device_info/device_info.dart';
 import 'package:zariz_app/ui/uiUtils.dart';
+import 'package:zariz_app/ui/Job_confirmDialog.dart';
+import 'package:zariz_app/ui/customDropDown.dart';
+
 final Map<String, Item> _items = <String, Item>{};
 Item _itemForMessage(Map<String, dynamic> message) {
   final String itemId = message['data']['id'];
@@ -129,13 +132,15 @@ class JobsContext{
   List<WorkerDetails> lWorkersNotified;
   List<WorkerDetails> lWorkersAuthorized;
   List<WorkerDetails> lWorkersResponded;
-  
+  List<WorkerDetails> lWorkersHired;
+
   JobsContext(JobsDetails details) {
     this.details = details;
     this.ui = new JobsUI(this.details);
     this.lWorkersNotified = [];
     this.lWorkersAuthorized = [];
     this.lWorkersResponded = [];
+    this.lWorkersHired = [];
   }
 }
 class JobsUI{
@@ -271,7 +276,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
 
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
+
 
   final FocusNode myFocusNodeEmail = FocusNode();
   final FocusNode myFocusNodeFirstName = FocusNode();
@@ -286,7 +291,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   final FocusNode myFocusNodeBossBuisnessName = FocusNode();
   final FocusNode myFocusNodeBossPlace        = FocusNode();
 
-  String _firebase_token = "";
   Item _item;
   StreamSubscription<Item> _subscription;
 
@@ -399,7 +403,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             
             });
           }
-          refreshJobs();
+          var res2 = refreshJobs();
+          res2.then((bSuccess){ 
+            if (bSuccess)
+            {
+              setState((){});
+            }
+          });
         } 
       }
       if (choice.title == "jobs") {
@@ -711,44 +721,101 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   static final uncheckedColor = ZarizTheme.Colors.zarizGradientEnd.withAlpha(64);
   static final checkedColor = ZarizTheme.Colors.zarizGradientEnd.withAlpha(240);
 
-  void refreshJobs() {
+  Future<bool> refreshJobs() async {
+
     _services.getAllJobsAsBoss().then((res){
-    if (res["success"] == "true" || res["success"] == true) {
-        setState(() {
-          _lJobs = [];
-          for (int i=0;i<(res.length - 1);i++) {
-            var j=res[i.toString()];
-            _lJobs.add(new JobsContext(new JobsDetails()..nWorkers=j["nWorkers"].._place=j["place"].._jobId=j["jobID"].._discription=j["discription"].._lat=j["lat"].._lng=j["lng"].._wage=j["wage"].._lOccupationFieldListString=[j["occupationFieldListString"]]));
-            _lJobs[i].details.nWorkers = j["nWorkers"];
-            j["workerID_responded"].forEach((workers){
-              var resFuture = _services.getWorkerDetailsForID(workers);
-              resFuture.then((res) {
-                if ((res["success"] == "true") || (res["success"] == true)) {
-                  _lJobs[i].lWorkersResponded.add(new WorkerDetails().._firstName=res["firstName"].._lastName=res["lastName"].._lat=res["lat"]..
-                    _lng=res["lng"].._photoAGCSPath=res["_photoAGCSPath"].._radius = res["radius"].._wage = res["wage"].._place = res["place"].._userID=res["userID"]);
-                }
-              });
+    if (res["success"] == "true" || res["success"] == true)
+     {
+
+        _lJobs = [];
+        for (int i=0;i<(res.length - 1);i++) 
+        {
+          var j=res[i.toString()];
+          _lJobs.add(new JobsContext(new JobsDetails()..nWorkers=j["nWorkers"].._place=j["place"].._jobId=j["jobID"].._discription=j["discription"].._lat=j["lat"].._lng=j["lng"].._wage=j["wage"].._lOccupationFieldListString=[j["occupationFieldListString"]]));
+          _lJobs[i].details.nWorkers = j["nWorkers"];
+          j["workerID_responded"].forEach((workers)
+          {
+            var resFuture = _services.getWorkerDetailsForID(workers);
+            resFuture.then((res)
+            {
+              if ((res["success"] == "true") || (res["success"] == true)) {
+                _lJobs[i].lWorkersResponded.add(new WorkerDetails().._firstName=res["firstName"].._lastName=res["lastName"].._lat=res["lat"]..
+                  _lng=res["lng"].._photoAGCSPath=res["_photoAGCSPath"].._radius = res["radius"].._wage = res["wage"].._place = res["place"].._userID=res["userID"]);
+              }
+              else
+              {
+                return false;
+              }
+              setState(() {
+                    _lJobs[i].lWorkersResponded=_lJobs[i].lWorkersResponded;
+                  });
             });
-            j["workerID_sentNotification"].forEach((workers){
+
+            j["workerID_sentNotification"].forEach((workers)
+            {
               var resFuture = _services.getWorkerDetailsForID(workers);
-              resFuture.then((res) {
-                if ((res["success"] == "true") || (res["success"] == true)) {
+              resFuture.then((res) 
+              {
+                if ((res["success"] == "true") || (res["success"] == true))
+                  {
                   _lJobs[i].lWorkersNotified.add(new WorkerDetails().._firstName=res["firstName"].._lastName=res["lastName"].._lat=res["lat"]..
                     _lng=res["lng"].._photoAGCSPath=res["_photoAGCSPath"].._radius = res["radius"].._wage = res["wage"].._place = res["place"].._userID=res["userID"]);
                 }
-              });
-            });
-            j["workerID_authorized"].forEach((workers){
-              var resFuture = _services.getWorkerDetailsForID(workers);
-              resFuture.then((res) {
-                if ((res["success"] == "true") || (res["success"] == true)) {
-                  _lJobs[i].lWorkersAuthorized.add(new WorkerDetails().._firstName=res["firstName"].._lastName=res["lastName"].._lat=res["lat"]..
-                    _lng=res["lng"].._photoAGCSPath=res["_photoAGCSPath"].._radius = res["radius"].._wage = res["wage"].._place = res["place"].._userID=res["userID"]);
+                else
+                {
+                  return false;
                 }
+                setState(() {
+                    _lJobs[i].lWorkersNotified=_lJobs[i].lWorkersNotified;
+                  });
               });
+
+              j["workerID_authorized"].forEach((workers)
+              {
+                var resFuture = _services.getWorkerDetailsForID(workers);
+                resFuture.then((res) 
+                {
+                  if ((res["success"] == "true") || (res["success"] == true)) 
+                  {
+                    _lJobs[i].lWorkersAuthorized.add(new WorkerDetails().._firstName=res["firstName"].._lastName=res["lastName"].._lat=res["lat"]..
+                      _lng=res["lng"].._photoAGCSPath=res["_photoAGCSPath"].._radius = res["radius"].._wage = res["wage"].._place = res["place"].._userID=res["userID"]);
+                  }
+                  else
+                  {
+                    return false;
+                  }
+                  setState(() {
+                    _lJobs[i].lWorkersAuthorized=_lJobs[i].lWorkersAuthorized;
+                  });
+                });
+              });
+              j["workerID_hired"].forEach((workers)
+              {
+                var resFuture = _services.getWorkerDetailsForID(workers);
+                resFuture.then((res) 
+                {
+                  if ((res["success"] == "true") || (res["success"] == true)) 
+                  {
+                    _lJobs[i].lWorkersHired.add(new WorkerDetails().._firstName=res["firstName"].._lastName=res["lastName"].._lat=res["lat"]..
+                      _lng=res["lng"].._photoAGCSPath=res["_photoAGCSPath"].._radius = res["radius"].._wage = res["wage"].._place = res["place"].._userID=res["userID"]);
+                  }
+                  else
+                  {
+                    return false;
+                  }
+                  setState(() {
+                    _lJobs[i].lWorkersHired=_lJobs[i].lWorkersHired;
+                  });
+                });
+              });
+
             });
-          }
-        });
+          });
+          
+          
+          print("refreshJobs, !!!!!!!!!! job #$i - _lJobs[i].lWorkersNotified.length ${_lJobs[i].lWorkersNotified.length}");
+        }
+
       }
     });
   }
@@ -776,6 +843,12 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
   int _tLength = 2;
   int _iTest =0;
+
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
+  AndroidDeviceInfo _androidInfo;
+  String _homeScreenText = "Waiting for token...";
+  String _firebase_token = "";
+
   @override
   void initState() {
     super.initState();
@@ -807,6 +880,101 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
     //_switchAnim = _switchAnimCurve.animate(_switchAnimController);
     _switchAnimController.forward(); 
+
+    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    deviceInfo.androidInfo.then((v){
+      _androidInfo=v;
+      print('DeviceInfo - brand ${v.brand}, model ${v.model}, phisical device ${v.isPhysicalDevice}');
+    });
+    _firebaseMessaging.configure(
+      onMessage: (Map<String, dynamic> message) async {
+        print("onMessage: $message" );
+        // notificationOptions(message["notification"]["body"]).then((b){
+        //   (b==true)?showInSnackBar("הוא מעוניין!!"):showInSnackBar("הוא לא מעוניין!!");
+        //   }
+        // );
+        //_showItemDialog(message);
+        String sMsg = "הצעת עבודה מ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+        sMsg+="שכר ${message["data"]["wage"]}\n";
+        sMsg+="מיקום ${message["data"]["place"]}\n";
+        final res = Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => JobConfirmPage(sTitle:sMsg, jobID: message["data"]["jobID"],)),
+        );
+        res.then((s){
+
+            print("confirm job before refresh");
+            var res2 = refreshJobs();
+            // res2.then((bSuccess){ 
+            //   if (bSuccess)
+            //   {
+            //     print("confirm job after refresh, succeeded, rebuilding");
+            //     setState((){});         
+            //   }
+            // });
+        }); 
+
+        //notificationOptions2(sMsg);
+      },
+      onLaunch: (Map<String, dynamic> message) async {
+        print("onLaunch: $message");
+        String sMsg = "הצעת עבודה מ${message["firstName"]} ${message["lastName"]} \n";
+        sMsg+="שכר ${message["wage"]}\n";
+        sMsg+="מיקום ${message["place"]}\n";
+
+        final res = Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => JobConfirmPage(sTitle:sMsg, jobID: message["jobID"],)),
+            );
+        res.then((s){
+            var res2 = refreshJobs();
+          //   res2.then((bSuccess){ 
+          //   if (bSuccess)
+          //   {
+          //     setState((){});
+          //   }
+          // });
+        }); 
+
+       
+      },
+      onResume: (Map<String, dynamic> message) async {
+        print("onResume: $message");
+        String sMsg = "הצעת עבודה מ${message["firstName"]} ${message["lastName"]} \n";
+        sMsg+="שכר ${message["wage"]}\n";
+        sMsg+="מיקום ${message["place"]}\n";
+        final res = Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => JobConfirmPage(sTitle:sMsg, jobID: message["jobID"],)),
+            );
+        res.then((s){
+          var res2 = refreshJobs();
+          // res2.then((bSuccess){ 
+          //   if (bSuccess)
+          //   {
+          //     setState((){});
+          //   }
+          // });     
+        }); 
+
+      },
+    );
+    _firebaseMessaging.requestNotificationPermissions(
+        const IosNotificationSettings(sound: true, badge: true, alert: true));
+    _firebaseMessaging.onIosSettingsRegistered
+        .listen((IosNotificationSettings settings) {
+      print("Settings registered: $settings");
+    });
+    _firebaseMessaging.getToken().then((String token) {
+      assert(token != null);
+      setState(() {
+        _homeScreenText = "Push Messaging token: $token";
+        _firebase_token = token;
+        _services.registerDevice(_androidInfo.model, 'Android', _androidInfo.id, token);
+      });
+      print(_homeScreenText);
+    });
+
     //_switchAnimCurve = CurvedAnimation(parent: _switchAnimController, curve: Curves.elasticInOut);
     var resFuture = _services.getFieldDetails();
     resFuture.then((res) {
@@ -860,7 +1028,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       }
     });
     
-    refreshJobs();
+    var res2 = refreshJobs();
+          // res2.then((bSuccess){ 
+          //   if (bSuccess)
+          //   {
+          //     setState((){});
+          //   }
+          // }); 
     
     var resFuture2 = _services.getOccupationDetails();
     resFuture2.then((res){
@@ -1145,6 +1319,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   bool _bBossMode = false;
   bool _bJobMenu = false;
   bool _bShrinkJobMenu = false;
+  bool _bExpandOccupation = false;
   void _onWorkerButtonPress() {
     setState((){
       _bBossMode = false;
@@ -1435,7 +1610,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         value: "מאור",
         child: new Text("מאור"),
     )]; 
-  
+  var _jobPlaceText="בחר תחום";
   
   List<DropdownMenuItem<String>> _lOccupationDropDown = [];
   List<GlobalKey> _lKeyForJobDiscription;
@@ -1498,6 +1673,29 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         child: new Text(f.toString()),
       )
     ));
+    
+    var _dropDownButtonOccupation = new DropdownButton(
+                                      iconSize: 30.0,
+                                      isExpanded: true,
+                                      items: _lOccupationDropDown,
+                                      hint: createTextWithIcon(_jobPlaceText, FontAwesomeIcons.hammer),
+                                       style: TextStyle(
+                                      fontFamily: "WorkSansSemiBold",
+                                      fontSize: 16.0,
+                                      color: Colors.black),
+                                  
+                                        onChanged: ((s)
+                                      {
+                                        job.ui.connOccupationList.text = s;
+                                        _iJobIsUpdated = index;
+                                        _idJobIsUpdated = job.details._jobId;
+                                        setState(()
+                                        { 
+                                          _jobPlaceText = s;
+                                          _bExpandOccupation=false;
+                                        });
+                                      })
+                                    );
     _lKeyForJobDiscription[index]=new GlobalKey(debugLabel: "keyForJobDiscription_$index");
     return new ConstrainedBox(
        constraints: const BoxConstraints.expand(),
@@ -1578,37 +1776,17 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                         color: Colors.grey[400],
                       ),
                       createTextField("שכר", job.ui.fnWage, job.ui.conWage, FontAwesomeIcons.shekelSign, keyboardType: TextInputType.number),
-                      new Row(
-                        children:<Widget>
-                        [ 
-                          new Flexible(child: createTextField("בחר תחום", job.ui.fnnOccupationList, job.ui.connOccupationList, FontAwesomeIcons.hammer)),
-                          new Flexible(
-                            child: Padding(
-                              padding: EdgeInsets.only(
-                                  top: 10.0, bottom: 10.0),
-                                
-                                child: new SingleChildScrollView (
+  new SingleChildScrollView (
                                   child: new Theme(
                                     data: new ThemeData(
                                       fontFamily: "WorkSansSemiBold", 
                                       canvasColor: Colors.white54, //my custom color
                                     ),
-                                    child: new DropdownButton(
-                                      iconSize: 30.0,
-                                      items: _lOccupationDropDown,
-                                      onChanged: ((s)
-                                      {
-                                        job.ui.connOccupationList.text = s;
-                                        _iJobIsUpdated = index;
-                                        _idJobIsUpdated = job.details._jobId;
-                                      }),
-                                    )
+                                    child: _dropDownButtonOccupation,
                                   ),
-                                )
-                              )
-                            )
-                        ]
-                      ),
+                                ),
+               
+                      
                       createTextField("מספר עובדים", job.ui.fnnWorkers, job.ui.connWorkers, FontAwesomeIcons.peopleCarry, keyboardType: TextInputType.number, validator: new BlacklistingTextInputFormatter(new RegExp('[\\.|\\,|\\-|\\ ]'))),    
                     ]
                     
@@ -1684,7 +1862,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                       }),
                       shape: new CircleBorder(),                          
                     ),  
-                    Text('עובדים'),
+                    Text(_bShrinkJobMenu ? 'פרטי עבודה':'עובדים'),
                     ]),
                     bIsEmptyEntry? Container() : Column(children: [ RawMaterialButton(
                       fillColor: _lJobsIDsMarkedForDeletion.contains(_lJobs[index].details._jobId)?Colors.red[300]:Colors.grey[300],
@@ -1914,6 +2092,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         job=j;
       }
     });
+    print("_buildBossJobsLivePage, !!!!!!!!!!!!!!!! job.lWorkersNotified.length ${job.lWorkersNotified.length}");
     if (job==null||job.lWorkersNotified==[])
       return new Directionality(
         textDirection: TextDirection.rtl,
@@ -1945,30 +2124,47 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   break;
                 }
               }
-
+              bool bHired = false;
+              for(var w in job.lWorkersHired) {
+                if (job.lWorkersNotified[index]._userID == w._userID) {
+                  bHired = true;
+                  break;
+                }
+              }
               return   Card(elevation: 2.0,
                 color: Colors.white54,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8.0),
                 ),child: new Container(child: new Row(children: <Widget>[
                 RawMaterialButton(
-                  fillColor: bAuthorized? Colors.green:(bResponded? Colors.yellow:Colors.grey),
+                  fillColor: bHired ? Color.fromRGBO(212, 175, 55, 1) : (bAuthorized? Colors.green:(bResponded? Colors.red:Colors.grey)),
                   splashColor: Colors.white,
                   child: new Container(
                     decoration: new BoxDecoration(                          
                       shape: BoxShape.circle,
-                      color: bAuthorized? Colors.green:(bResponded? Colors.yellow:Colors.grey),
+                      color: bHired ? Color.fromRGBO(212, 175, 55, 1) : (bAuthorized? Colors.green:(bResponded? Colors.red:Colors.grey)),
                   ),
-                  child:  bAuthorized? new Icon(Icons.check):(bResponded? Icon(Icons.add):Icon(FontAwesomeIcons.question)),
+                  child:  bHired ?  new Icon(FontAwesomeIcons.handshake): bAuthorized? new Icon(FontAwesomeIcons.check):(bResponded? Icon(FontAwesomeIcons.exclamation):Icon(FontAwesomeIcons.question)),
                   ), 
                   onPressed: ((){
+                    if (!bAuthorized) {
+                      // re-send notification
+
+                    } else if (!bHired) {
+                      _services.hire(jobID).then((res) {
+                        if (res.containsKey("success") && ((res["success"] == "true") || (res["success"] == true))) {
+                          setState(() {});
+                        }
+                      });
+                      
+                    }
+                    
                   }),
                   shape: new CircleBorder(),
                   
                 ),
           
                 createTitle('${job.lWorkersNotified[index]._firstName} ${job.lWorkersNotified[index]._lastName}'),
-
                 
               ])));
             }

@@ -12,16 +12,18 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:device_info/device_info.dart';
 import 'package:zariz_app/style/theme.dart' as ZarizTheme;
 
-Widget createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData, {keyboardType=TextInputType.text, maxLines = 1, validator=null, textSize=16.0, bCenter =false}) {
+Widget createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData, {keyboardType=TextInputType.text, maxLines = 1, validator=null, textSize=16.0, bCenter =false, onTapFunction=null, enableEdit=true}) {
     return new Padding(
       padding: bCenter? EdgeInsets.only(top:10.0, bottom:10.0) :
         EdgeInsets.only(top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
       child: TextField(
+        enabled: enableEdit,
         focusNode: focusNode,
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
         inputFormatters: validator==null?null:[validator],
+        onTap: onTapFunction==null?null:onTapFunction,
         textAlign: bCenter?TextAlign.center:TextAlign.start,
         style: TextStyle(
             fontFamily: "WorkSansSemiBold",
@@ -42,6 +44,24 @@ Widget createTextField(String hintText, FocusNode focusNode, TextEditingControll
         ),
       ),
     );
+  }
+  Widget createTextWithIcon(String hintText, IconData iconData) {
+    return new Padding(
+      padding: EdgeInsets.only(top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
+      child: new Row(
+        mainAxisAlignment : MainAxisAlignment.start,
+        children: <Widget>[
+          
+          new Icon(iconData, size: 22.0,
+            color: Colors.black87,),
+          new Padding(
+      padding: EdgeInsets.only(top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
+      child: new Text(hintText,textAlign: TextAlign.start,
+        style: TextStyle(
+            fontFamily: "WorkSansSemiBold",
+            fontSize: 16.0,
+            color: Colors.black),))]));
+      
   }
 Widget createTitle(String sTitle, {IconData icon, textSize=16.0, bCenter =false})
 {

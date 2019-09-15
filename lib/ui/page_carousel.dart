@@ -105,7 +105,7 @@ class CarosuelState {
       print("JobsPageCarouselValue $currentPageValue");
     });
     _pv = new PageView.builder(
-              physics: new AlwaysScrollableScrollPhysics(),
+              physics:  (pages.length == 1) ? new NeverScrollableScrollPhysics() : new AlwaysScrollableScrollPhysics(),
               controller: _controller,
               itemBuilder: (BuildContext context, int index) {
                 return pages[index % pages.length];

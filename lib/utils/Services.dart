@@ -199,8 +199,21 @@ class Services {
 
     return res;
   }
-  Future<Map<String, dynamic>> confirmJob(jobID) async {
-    var res = postServer("/confirmJob/", {'jobID' : jobID});
+  Future<Map<String, dynamic>> confirmJob(jobID, bAccepted) async {
+    var res = postServer("/confirmJob/", {'jobID' : jobID, 'accepted' : (bAccepted) ? "true" : "false"});
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> hire(jobID) async {
+    var res = postServer("/hire/", {'jobID' : jobID});
         
     res.then((jResponse) {
           if (jResponse["success"] == true) {
@@ -260,12 +273,15 @@ class Services {
             var password = Singleton().persistentState.getString("password");
 
             if ( (username != null) && (password != null)) {
-                var lCookies = Singleton().cj.loadForRequest(uri);
                 var headers = new Map<String,String>();//{HttpHeaders.authorizationHeader: basicAuth};
                 var sCookie = "";
-                var s = lCookies.map((i) => (i.name + "=" + i.value));
-                sCookie = s.join(";");
-
+                if (Singleton().cj!=null) {
+                  var lCookies = Singleton().cj.loadForRequest(uri);
+                  var s = lCookies.map((i) => (i.name + "=" + i.value));
+                  sCookie = s.join(";");
+                }
+                
+                
                 headers["Cookie"] = sCookie;
 
                 response = await http.post(url, body : bodyMap, headers: headers);

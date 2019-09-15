@@ -12,7 +12,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:device_info/device_info.dart';
 import 'package:zariz_app/style/theme.dart' as ZarizTheme;
 import 'package:zariz_app/ui/uiUtils.dart';
-import 'package:zariz_app/ui/Job_confirmDialog.dart';
+
 
 // import 'package:firebase_auth/firebase_auth.dart';
 //import 'package:google_sign_in/google_sign_in.dart';
@@ -398,10 +398,7 @@ class _LoginPageState extends State<LoginPage>
     _pageController?.dispose();
     super.dispose();
   }
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
-  AndroidDeviceInfo _androidInfo;
-  String _homeScreenText = "Waiting for token...";
-  String _firebase_token = "";
+  
   @override
   void initState() {
     super.initState();
@@ -423,71 +420,11 @@ class _LoginPageState extends State<LoginPage>
                       //onLoginPressed(loginEmailController.text, loginPasswordController.text);
                     });
     });
-     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-    deviceInfo.androidInfo.then((v){
-      _androidInfo=v;
-      print('DeviceInfo - brand ${v.brand}, model ${v.model}, phisical device ${v.isPhysicalDevice}');
-    });
+    
     
     //IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
     //print('Running on ${iosInfo.utsname.machine}');  // e.g. "iPod7,1
     
-    _firebaseMessaging.configure(
-      onMessage: (Map<String, dynamic> message) async {
-        print("onMessage: $message" );
-        // notificationOptions(message["notification"]["body"]).then((b){
-        //   (b==true)?showInSnackBar("הוא מעוניין!!"):showInSnackBar("הוא לא מעוניין!!");
-        //   }
-        // );
-        //_showItemDialog(message);
-        String sMsg = "הצעת עבודה מ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
-        sMsg+="שכר ${message["data"]["wage"]}\n";
-        sMsg+="מיקום ${message["data"]["place"]}\n";
-        Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => JobConfirmPage(sTitle:sMsg, jobID: message["data"]["jobID"],)),
-            );
-        //notificationOptions2(sMsg);
-      },
-      onLaunch: (Map<String, dynamic> message) async {
-        print("onLaunch: $message");
-        String sMsg = "הצעת עבודה מ${message["firstName"]} ${message["lastName"]} \n";
-        sMsg+="שכר ${message["wage"]}\n";
-        sMsg+="מיקום ${message["place"]}\n";
-
-        Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => JobConfirmPage(sTitle:sMsg, jobID: message["jobID"],)),
-            );
-      },
-      onResume: (Map<String, dynamic> message) async {
-        print("onResume: $message");
-        String sMsg = "הצעת עבודה מ${message["firstName"]} ${message["lastName"]} \n";
-        sMsg+="שכר ${message["wage"]}\n";
-        sMsg+="מיקום ${message["place"]}\n";
-        Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => JobConfirmPage(sTitle:sMsg, jobID: message["jobID"],)),
-            );
-        
-      },
-    );
-    _firebaseMessaging.requestNotificationPermissions(
-        const IosNotificationSettings(sound: true, badge: true, alert: true));
-    _firebaseMessaging.onIosSettingsRegistered
-        .listen((IosNotificationSettings settings) {
-      print("Settings registered: $settings");
-    });
-    _firebaseMessaging.getToken().then((String token) {
-      assert(token != null);
-      setState(() {
-        _homeScreenText = "Push Messaging token: $token";
-        _firebase_token = token;
-        _services.registerDevice(_androidInfo.model, 'Android', _androidInfo.id, token);
-      });
-      print(_homeScreenText);
-    });
-
   }
 
   void showInSnackBar(String value) {

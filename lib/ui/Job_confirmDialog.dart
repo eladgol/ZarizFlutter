@@ -71,7 +71,13 @@ class _JobConfirmPageState extends State<JobConfirmPage> {
                         child: const Text('לא הפעם'),
                         onPressed:  () 
                         {
-                          Navigator.pop(context, 'לא הפעם');
+                          var res = _services.confirmJob(jobID, false);
+                          res.then((jResponse) {
+                            Navigator.pop(context, 'לא הפעם');
+                          });
+                          
+                          
+                          
                         },
                         color:Colors.red
                       ),    
@@ -79,7 +85,7 @@ class _JobConfirmPageState extends State<JobConfirmPage> {
                         child: const Text('מעוניין'),
                         onPressed:  () 
                         {
-                          _services.confirmJob(jobID);
+                          _services.confirmJob(jobID, true);
                           Navigator.pop(context, 'מעוניין');
                         },
                         color:Colors.green
