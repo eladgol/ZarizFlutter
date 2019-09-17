@@ -23,7 +23,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:device_info/device_info.dart';
 import 'package:zariz_app/ui/uiUtils.dart';
 import 'package:zariz_app/ui/Job_confirmDialog.dart';
-import 'package:zariz_app/ui/customDropDown.dart';
 
 final Map<String, Item> _items = <String, Item>{};
 Item _itemForMessage(Map<String, dynamic> message) {
@@ -426,7 +425,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
 
   static final String kGoogleApiKey = "AIzaSyCKbtYyIOqIe1mmCIPIp_wezViTi2JHiC0";
-  GoogleMapsPlaces _placesAPI = new GoogleMapsPlaces(kGoogleApiKey);
+  GoogleMapsPlaces _placesAPI = new GoogleMapsPlaces(apiKey:kGoogleApiKey);
 
   void setPlaceLatLng(String sPlace, bool bIsBoss, {int jobIndex=-1}) {
     _placesAPI.searchByText(sPlace, language : "iw").then((a) {
@@ -482,7 +481,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     Completer<ImageInfo> completer = new Completer<ImageInfo>();
     image.image
       .resolve(new ImageConfiguration())
-      .addListener((ImageInfo info, bool _) => completer.complete(info));
+      .addListener(new ImageStreamListener((ImageInfo info, bool _) => completer.complete(info)));
     return completer.future;
   }
   Image getAdjustedImageFromFile(File img, ImageInfo info) {
@@ -678,6 +677,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         body: NotificationListener<OverscrollIndicatorNotification>(
           onNotification: (overscroll) {
             overscroll.disallowGlow();
+            return false;
           },
 
                 child: AnimatedContainer(
@@ -894,7 +894,8 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         //   }
         // );
         //_showItemDialog(message);
-        String sMsg = "הצעת עבודה מ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+        String sMsg = "${message["data"]["discription"]} \n";
+        sMsg+= "\nהצעת עבודה מ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
         sMsg+="שכר ${message["data"]["wage"]}\n";
         sMsg+="מיקום ${message["data"]["place"]}\n";
         final res = Navigator.push(
@@ -918,10 +919,11 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       },
       onLaunch: (Map<String, dynamic> message) async {
         print("onLaunch: $message");
-        String sMsg = "הצעת עבודה מ${message["firstName"]} ${message["lastName"]} \n";
-        sMsg+="שכר ${message["wage"]}\n";
-        sMsg+="מיקום ${message["place"]}\n";
-
+        String sMsg = "${message["data"]["discription"]} \n";
+        sMsg+= "\nהצעת עבודה מ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+        sMsg+="שכר ${message["data"]["wage"]}\n";
+        sMsg+="מיקום ${message["data"]["place"]}\n";
+        
         final res = Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => JobConfirmPage(sTitle:sMsg, jobID: message["jobID"],)),
@@ -940,9 +942,10 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       },
       onResume: (Map<String, dynamic> message) async {
         print("onResume: $message");
-        String sMsg = "הצעת עבודה מ${message["firstName"]} ${message["lastName"]} \n";
-        sMsg+="שכר ${message["wage"]}\n";
-        sMsg+="מיקום ${message["place"]}\n";
+        String sMsg = "${message["data"]["discription"]} \n";
+        sMsg+= "\nהצעת עבודה מ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+        sMsg+="שכר ${message["data"]["wage"]}\n";
+        sMsg+="מיקום ${message["data"]["place"]}\n";
         final res = Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => JobConfirmPage(sTitle:sMsg, jobID: message["jobID"],)),
@@ -1605,7 +1608,34 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     ),]);
     return c.buildCarousel(context, _heightMain);
   }
-
+  Widget addJobWidget(bool bIsEmpty)
+  {
+     return new Column(children: [ 
+                      RawMaterialButton(
+                      constraints: bIsEmpty ? BoxConstraints.tight(Size(_widthSwitch/4, _heightSwitch*4)):BoxConstraints.tight(Size(88.0, 36.0)),
+                      fillColor: Colors.green[300],
+                      splashColor: Colors.white,
+                      child: new Container(
+                        decoration: new BoxDecoration(                          
+                          shape: BoxShape.circle,// You can use like this way or like the below line
+                          //borderRadius: new BorderRadius.circular(30.0),
+                          color: Colors.green[300],
+                        ),
+                        child:  bIsEmpty ? new Icon(Icons.add, size:_widthSwitch/8) : Icon(Icons.add), 
+                      ),                          
+                      onPressed: ((){
+                        setState((){
+                          _lJobs.add(new JobsContext(new JobsDetails()));
+                          _cs.setPage(0);
+                        });
+                      }),
+                      shape: new CircleBorder(),
+                                                
+                    ),  
+                    bIsEmpty ? Text('הוסף עבודה' ,textScaleFactor: 1.5,): Text('הוסף עבודה'),
+                    ]);
+                    
+  }
   List<DropdownMenuItem<String>> _lJobsDropDownList =[new DropdownMenuItem<String>(
         value: "מאור",
         child: new Text("מאור"),
@@ -1710,7 +1740,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             children: 
             [
               Column(children: <Widget>[
-              createTitle("עבודה ${index+1} מתוך ${_lJobs.length}"),
+              _lJobs.length==0 ?  createTitle("אין עבודות") :createTitle("עבודה ${index+1} מתוך ${_lJobs.length}"),
                AnimatedContainer(
                  duration: new Duration(milliseconds: 500),
                  curve: Curves.elasticInOut,
@@ -1797,33 +1827,12 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             
             Positioned(bottom:0.0, left:0.0, right:0.0, 
               child:
+              bIsEmptyEntry? addJobWidget(bIsEmptyEntry):
               Container(child: new Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: <Widget>[
-                    Column(children: [ 
-                      RawMaterialButton(
-                      fillColor: Colors.green[300],
-                      splashColor: Colors.white,
-                      child: new Container(
-                        decoration: new BoxDecoration(                          
-                          shape: BoxShape.circle,// You can use like this way or like the below line
-                          //borderRadius: new BorderRadius.circular(30.0),
-                          color: Colors.green[300],
-                        ),
-                        child:  new Icon(Icons.add), 
-                      ),                          
-                      onPressed: ((){
-                        setState((){
-                          _lJobs.add(new JobsContext(new JobsDetails()));
-                          _cs.setPage(0);
-
-                        });
-                      }),
-                      shape: new CircleBorder(),                          
-                    ),  
-                    Text('הוסף עבודה' ),
-                    ]),
-                    bIsEmptyEntry? Container() : Column(children: [ 
+                  addJobWidget(bIsEmptyEntry),
+                   bIsEmptyEntry? Container() : Column(children: [ 
                     RawMaterialButton(
                       fillColor: Colors.blue[300],
                       splashColor: Colors.white,

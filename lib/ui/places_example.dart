@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 const kGoogleApiKey = "API_KEY";
 
 // to get places detail (lat/lng)
-GoogleMapsPlaces _places = new GoogleMapsPlaces(kGoogleApiKey);
+GoogleMapsPlaces _places = new GoogleMapsPlaces(apiKey:kGoogleApiKey);
 
 main() {
   runApp(new MaterialApp(

@@ -30,6 +30,7 @@ class _JobConfirmPageState extends State<JobConfirmPage> {
       body: NotificationListener<OverscrollIndicatorNotification>(
         onNotification: (overscroll) {
           overscroll.disallowGlow();
+          return false;
         },
         child: new  Container(
           height: MediaQuery.of(context).size.height >= 775.0
@@ -61,7 +62,7 @@ class _JobConfirmPageState extends State<JobConfirmPage> {
                 ),
                 (_bUpdating) ? new CircularProgressIndicator(backgroundColor: Theme.Colors.zarizGradientStart):new Container(),
                   createTextField("הצעת עבודה",  null, null, null, textSize: 32.0, bCenter:true),
-                  createTextField(sTitle, null, null, null, bCenter:true),
+                  createTextField(sTitle, null, null, null, bCenter:true, maxLines: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children:<Widget>

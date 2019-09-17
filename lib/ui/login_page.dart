@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:core';
-import 'dart:async';
+
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:zariz_app/style/theme.dart' as Theme;
 import 'package:zariz_app/utils/bubble_indication_painter.dart';
 import 'package:zariz_app/utils/Services.dart';
 import 'package:zariz_app/ui/profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:device_info/device_info.dart';
-import 'package:zariz_app/style/theme.dart' as ZarizTheme;
-import 'package:zariz_app/ui/uiUtils.dart';
-
 
 // import 'package:firebase_auth/firebase_auth.dart';
 //import 'package:google_sign_in/google_sign_in.dart';
@@ -319,6 +314,7 @@ class _LoginPageState extends State<LoginPage>
       body: NotificationListener<OverscrollIndicatorNotification>(
         onNotification: (overscroll) {
           overscroll.disallowGlow();
+          return false;
         },
         child: SingleChildScrollView(
           child: Container(

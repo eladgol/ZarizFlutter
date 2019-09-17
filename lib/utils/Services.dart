@@ -345,7 +345,7 @@ void retreivePersistentState(SharedPreferences o) async {
   o.getString("user");
   Directory tempDir = await getTemporaryDirectory();
   String tempPath = tempDir.path;
-  Singleton().cj = new PersistCookieJar(tempPath);
+  Singleton().cj = new PersistCookieJar(dir:tempPath);
 }
 Future<String> saveImage( List<int> imageBytes, String ext) async {
   String sDir = (await getApplicationDocumentsDirectory()).path;
