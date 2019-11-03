@@ -60,7 +60,6 @@ class TabIndicationPainterNoPageController extends CustomPainter {
     canvas.translate(size.width * pageOffset, 0.0);
     canvas.drawShadow(path, Color(0xFFfbab66), 3.0, true);
     canvas.drawPath(path, painter); 
-    print("$pageOffset ${size.width}" );
   }
 
   @override

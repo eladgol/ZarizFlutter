@@ -31,8 +31,14 @@ class Services {
   void setIP(String __ip, int __port){
     ip = __ip;  
     port = __port;
-    Singleton().persistentState.setString("IP", ip.toString());
-    Singleton().persistentState.setString("port", __port.toString());
+    try {
+      Singleton().persistentState.setString("IP", ip.toString());
+      Singleton().persistentState.setString("port", __port.toString());
+      
+    } catch (e) {
+      print("setIP - unable to set IP $e");
+    }
+    
   }
   Future<Map<String, dynamic>> updateInputForm(Map<String, dynamic> fields) async {
     var res = postServer("/updateAllInputsForm/", fields);
@@ -63,7 +69,12 @@ class Services {
               var jResponse2 = new Map<String, dynamic>.from(jResponse);
               jResponse2.remove("success");
               // toDo: update the occupation list and picture 
-              Singleton().persistentState.setString("BossDetails", jResponse2.toString());
+              try {
+                Singleton().persistentState.setString("BossDetails", jResponse2.toString());
+              
+              } catch (e) {
+                print("updateBossInputForm - persistentState error $e");
+              }
             }
           }
     });
@@ -128,7 +139,12 @@ class Services {
           if (jResponse["success"] == true) {
               var jResponse2 = new Map<String, dynamic>.from(jResponse);
               jResponse2.remove("success");
-              Singleton().persistentState.setString("WorkerOccupation", jResponse2.toString());
+              try {
+                Singleton().persistentState.setString("WorkerOccupation", jResponse2.toString());
+              } catch (e) {
+                print("getOccupationDetails - persistentState error - $e");
+              }
+              
           }
     });
 
@@ -212,8 +228,21 @@ class Services {
 
     return res;
   }
-  Future<Map<String, dynamic>> hire(jobID) async {
-    var res = postServer("/hire/", {'jobID' : jobID});
+  Future<Map<String, dynamic>> hire(jobID, workerUserID, bHire) async {
+    var res = postServer("/hire/", {'jobID' : jobID, 'workerID' : workerUserID.toString(), 'accepted' : (bHire) ? "true" : "false"});
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> confirmHire(jobID, workerUserID, bHire) async {
+    var res = postServer("/confirmHire/", {'jobID' : jobID, 'workerID' : workerUserID.toString(), 'accepted' : (bHire) ? "true" : "false"});
         
     res.then((jResponse) {
           if (jResponse["success"] == true) {
@@ -233,8 +262,13 @@ class Services {
     res.then((jResponse) {
           print("performing login received ${jResponse.toString()}");
           if (jResponse["success"] == true) {
+            try {
               Singleton().persistentState.setString("user", username);
               Singleton().persistentState.setString("password", password);
+            } catch (e) {
+              print("performLogin - persistentState error - $e");
+            }
+              
           }
     });
 
@@ -247,8 +281,12 @@ class Services {
         
     res.then((jResponse) {
           if (jResponse["success"] == true) {
+            try {
               Singleton().persistentState.setString("user", username);
               Singleton().persistentState.setString("password", password);
+            } catch (e) {
+              print("performLogin - persistentState error - $e");
+            }
           }
     });
     
@@ -309,10 +347,18 @@ class Services {
         }
       });
       
-      Singleton().cj.saveFromResponse(uri, lCookies);
+      try {
+        Singleton().cj.saveFromResponse(uri, lCookies);
+      } catch (e) {
+        print("postServer - Singleton().cj.saveFromResponse, error - $e");
+      } 
     }
-
-    Singleton().cj.loadForRequest(uri);
+    try {
+      Singleton().cj.loadForRequest(uri);
+    } catch (e) {
+      print("postServer - Singleton().cj.loadForRequest, error - $e");
+    }
+    
     var jResponse;
     if (response.statusCode >= 400)
     {

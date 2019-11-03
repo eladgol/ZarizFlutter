@@ -92,6 +92,9 @@ class CarosuelState {
       return 0.0;
     }
   }
+  int getNumberOfPages() {
+    return pages.length;
+  }
   void setPage(int page) {
     try {
     _controller.animateToPage(page, duration: _kDuration, curve:_kCurve );
