@@ -17,16 +17,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-
 // GoogleSignIn _googleSignIn = GoogleSignIn(
 //   scopes: <String>[
 //     'email',
 //     'https://www.googleapis.com/auth/contacts.readonly',
 //   ],
 // );
-
-
 
 // class SignInDemo extends StatefulWidget {
 //   @override
@@ -160,7 +156,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 //   }
 // }
 
-
 class LoginPage extends StatefulWidget {
   LoginPage({Key key}) : super(key: key);
 
@@ -170,11 +165,10 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage>
     with SingleTickerProviderStateMixin {
-
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
 
   Services _services = new Services();
-  
+
   final FocusNode myFocusNodeEmailLogin = FocusNode();
   final FocusNode myFocusNodePasswordLogin = FocusNode();
 
@@ -195,196 +189,190 @@ class _LoginPageState extends State<LoginPage>
   TextEditingController signupConfirmPasswordController =
       new TextEditingController();
 
-
   PageController _pageController;
 
   Color left = Colors.black;
   Color right = Colors.white;
-  
+
   bool _bLoginEnabled = true;
   bool _bSignUpEnabled = true;
-  
-  
-  TextEditingController _controllerIP = new TextEditingController(text: sDefaultIP);
-  TextEditingController _controllerPort = new TextEditingController(text: sDefaultPORT.toString());
-  
+
+  TextEditingController _controllerIP =
+      new TextEditingController(text: sDefaultIP);
+  TextEditingController _controllerPort =
+      new TextEditingController(text: sDefaultPORT.toString());
+
   void _select(ChoiceLogin choice) {
     // Causes the app to rebuild with the new _selectedChoice.
     setState(() {
       if (choice.title == "IP") {
-          showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        // return object of type Dialog
-        return AlertDialog(
-          title: new Text("קבע כתובת שרת"),
-            content:  new Column(
-              
-              children: <Widget>[
-                new TextField(
-                  controller: _controllerIP,
-                  keyboardType: TextInputType.url,
-                
-                  style: TextStyle(
-                    fontFamily: "WorkSansSemiBold",
-                    fontSize: 16.0,
-                    color: Colors.black
-                  ),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    icon: Icon(
-                      FontAwesomeIcons.users,
-                      color: Colors.black87,
-                      size: 22.0,
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            // return object of type Dialog
+            return AlertDialog(
+              title: new Text("קבע כתובת שרת"),
+              content: new Column(
+                children: <Widget>[
+                  new TextField(
+                    controller: _controllerIP,
+                    keyboardType: TextInputType.url,
+                    style: TextStyle(
+                        fontFamily: "WorkSansSemiBold",
+                        fontSize: 16.0,
+                        color: Colors.black),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      icon: Icon(
+                        FontAwesomeIcons.users,
+                        color: Colors.black87,
+                        size: 22.0,
+                      ),
+                      hintText: "IP",
+                      hintStyle: TextStyle(
+                          fontFamily: "WorkSansSemiBold", fontSize: 17.0),
                     ),
-                    hintText: "IP",
-                    hintStyle: TextStyle(
-                    fontFamily: "WorkSansSemiBold", fontSize: 17.0),
                   ),
-                ),
-                new TextField(
-                  controller: _controllerPort,
-                  keyboardType: TextInputType.number,
-                
-                  style: TextStyle(
-                    fontFamily: "WorkSansSemiBold",
-                    fontSize: 16.0,
-                    color: Colors.black
-                  ),
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    icon: Icon(
-                      FontAwesomeIcons.users,
-                      color: Colors.black87,
-                      size: 22.0,
+                  new TextField(
+                    controller: _controllerPort,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(
+                        fontFamily: "WorkSansSemiBold",
+                        fontSize: 16.0,
+                        color: Colors.black),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      icon: Icon(
+                        FontAwesomeIcons.users,
+                        color: Colors.black87,
+                        size: 22.0,
+                      ),
+                      hintText: "PORT",
+                      hintStyle: TextStyle(
+                          fontFamily: "WorkSansSemiBold", fontSize: 17.0),
                     ),
-                    hintText: "PORT",
-                    hintStyle: TextStyle(
-                    fontFamily: "WorkSansSemiBold", fontSize: 17.0),
                   ),
-                ),
-                
-              ],
-            ),
-            actions: <Widget>[
-              new FlatButton(
-                onPressed: () {
-                  _services.setIP(_controllerIP.text, int.parse(_controllerPort.text));
-                  Navigator.of(context).pop();
-                },
-                child: new Text("OK")
+                ],
               ),
-              new FlatButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: new Text("Cancel")
-              )
-          ],
+              actions: <Widget>[
+                new FlatButton(
+                    onPressed: () {
+                      _services.setIP(
+                          _controllerIP.text, int.parse(_controllerPort.text));
+                      Navigator.of(context).pop();
+                    },
+                    child: new Text("OK")),
+                new FlatButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: new Text("Cancel"))
+              ],
+            );
+          },
         );
-      },
-    );
       }
     });
   }
+
   bool _progressBarActive = false;
   @override
   Widget build(BuildContext context) {
     return new Scaffold(
-      appBar: AppBar(
-        title: Text('כניסה'),
-        actions: <Widget>[
-              PopupMenuButton<ChoiceLogin>(
-                onSelected: _select,
-                itemBuilder: (BuildContext context) {
-                  return choices.map((ChoiceLogin choice) {
-                    return PopupMenuItem<ChoiceLogin>(
-                      value: choice,
-                      child: Text(choice.title),
-                    );
-                  }).toList();
-                },
-              ),
-              // action button
-              
-            ],
-
-        ),
-      key: _scaffoldKey,
-      body: NotificationListener<OverscrollIndicatorNotification>(
-        onNotification: (overscroll) {
-          overscroll.disallowGlow();
-          return false;
-        },
-        child: SingleChildScrollView(
-          child: Container(
-            width: MediaQuery.of(context).size.width,
-            height: MediaQuery.of(context).size.height >= 775.0
-                ? MediaQuery.of(context).size.height
-                : 775.0,
-            decoration: new BoxDecoration(
-              gradient: new LinearGradient(
-                  colors: [
-                    Theme.Colors.zarizGradientStart,
-                    Theme.Colors.zarizGradientEnd
-                  ],
-                  begin: const FractionalOffset(0.0, 0.0),
-                  end: const FractionalOffset(1.0, 1.0),
-                  stops: [0.0, 1.0],
-                  tileMode: TileMode.clamp),
+        appBar: AppBar(
+          title: Text('כניסה'),
+          actions: <Widget>[
+            PopupMenuButton<ChoiceLogin>(
+              onSelected: _select,
+              itemBuilder: (BuildContext context) {
+                return choices.map((ChoiceLogin choice) {
+                  return PopupMenuItem<ChoiceLogin>(
+                    value: choice,
+                    child: Text(choice.title),
+                  );
+                }).toList();
+              },
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              children: <Widget>[
-                Padding(
-                  padding: EdgeInsets.only(top: 75.0),
-                  child: new Image(
-                      width: 250.0,
-                      height: 191.0,
-                      fit: BoxFit.scaleDown,
-                      image: new AssetImage('assets/img/login_logo.jpg')),
-                ),
-                _progressBarActive ? CircularProgressIndicator():Container(),
-                Padding(
-                  padding: EdgeInsets.only(top: 20.0),
-                  child: _buildSwitchBar(context),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: PageView(
-                    controller: _pageController,
-                    onPageChanged: (i) {
-                      if (i == 0) {
-                        setState(() {
-                          right = Colors.white;
-                          left = Colors.black;
-                        });
-                      } else if (i == 1) {
-                        setState(() {
-                          right = Colors.black;
-                          left = Colors.white;
-                        });
-                      }
-                    },
-                    children: <Widget>[
-                      new ConstrainedBox(
-                        constraints: const BoxConstraints.expand(),
-                        child: _buildSignIn(context),
-                      ),
-                      new ConstrainedBox(
-                        constraints: const BoxConstraints.expand(),
-                        child: _buildSignUp(context),
-                      ),
+            // action button
+          ],
+        ),
+        key: _scaffoldKey,
+        body: NotificationListener<OverscrollIndicatorNotification>(
+          onNotification: (overscroll) {
+            overscroll.disallowGlow();
+            return false;
+          },
+          child: SingleChildScrollView(
+            child: Container(
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height >= 775.0
+                  ? MediaQuery.of(context).size.height
+                  : 775.0,
+              decoration: new BoxDecoration(
+                gradient: new LinearGradient(
+                    colors: [
+                      Theme.Colors.zarizGradientStart,
+                      Theme.Colors.zarizGradientEnd
                     ],
+                    begin: const FractionalOffset(0.0, 0.0),
+                    end: const FractionalOffset(1.0, 1.0),
+                    stops: [0.0, 1.0],
+                    tileMode: TileMode.clamp),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                children: <Widget>[
+                  Padding(
+                    padding: EdgeInsets.only(top: 75.0),
+                    child: new Image(
+                        width: 250.0,
+                        height: 191.0,
+                        fit: BoxFit.scaleDown,
+                        image: new AssetImage('assets/img/login_logo.jpg')),
                   ),
-                ),
-              ],
+                  _progressBarActive
+                      ? CircularProgressIndicator()
+                      : Container(),
+                  Padding(
+                    padding: EdgeInsets.only(top: 20.0),
+                    child: _buildSwitchBar(context),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: PageView(
+                      controller: _pageController,
+                      onPageChanged: (i) {
+                        if (i == 0) {
+                          setState(() {
+                            right = Colors.white;
+                            left = Colors.black;
+                          });
+                        } else if (i == 1) {
+                          setState(() {
+                            right = Colors.black;
+                            left = Colors.white;
+                          });
+                        }
+                      },
+                      children: <Widget>[
+                        new ConstrainedBox(
+                          constraints: const BoxConstraints.expand(),
+                          child: _buildSignIn(context),
+                        ),
+                        new ConstrainedBox(
+                          constraints: const BoxConstraints.expand(),
+                          child: _buildSignUp(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      )
-    );
+        ));
   }
+
   bool _bUpdating = false;
   @override
   void dispose() {
@@ -394,7 +382,7 @@ class _LoginPageState extends State<LoginPage>
     _pageController?.dispose();
     super.dispose();
   }
-  
+
   @override
   void initState() {
     super.initState();
@@ -406,21 +394,19 @@ class _LoginPageState extends State<LoginPage>
 
     _pageController = PageController();
 
-    final  prefs = SharedPreferences.getInstance();
-    prefs.then((o){
-          retreivePersistentState(o);
-          setState(() {
-                      loginEmailController.text = o.getString("user");
-                      loginPasswordController.text = o.getString("password");
-                      _services = new Services();
-                      //onLoginPressed(loginEmailController.text, loginPasswordController.text);
-                    });
+    final prefs = SharedPreferences.getInstance();
+    prefs.then((o) {
+      retreivePersistentState(o);
+      setState(() {
+        loginEmailController.text = o.getString("user");
+        loginPasswordController.text = o.getString("password");
+        _services = new Services();
+        //onLoginPressed(loginEmailController.text, loginPasswordController.text);
+      });
     });
-    
-    
+
     //IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
     //print('Running on ${iosInfo.utsname.machine}');  // e.g. "iPod7,1
-    
   }
 
   void showInSnackBar(String value) {
@@ -487,11 +473,11 @@ class _LoginPageState extends State<LoginPage>
       ),
     );
   }
- 
+
   Widget _buildSignIn(BuildContext context) {
     return new Directionality(
       textDirection: TextDirection.rtl,
-      child : new Container(
+      child: new Container(
         padding: EdgeInsets.only(top: 23.0),
         child: Column(
           children: <Widget>[
@@ -517,7 +503,6 @@ class _LoginPageState extends State<LoginPage>
                             focusNode: myFocusNodeEmailLogin,
                             controller: loginEmailController,
                             keyboardType: TextInputType.emailAddress,
-                            
                             style: TextStyle(
                                 fontFamily: "WorkSansSemiBold",
                                 fontSize: 16.0,
@@ -531,7 +516,8 @@ class _LoginPageState extends State<LoginPage>
                               ),
                               hintText: "דואר אלקטרוני",
                               hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 17.0),
                             ),
                           ),
                         ),
@@ -560,7 +546,8 @@ class _LoginPageState extends State<LoginPage>
                               ),
                               hintText: "סיסמא",
                               hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 17.0),
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 17.0),
                               suffixIcon: GestureDetector(
                                 onTap: _toggleLogin,
                                 child: Icon(
@@ -603,21 +590,26 @@ class _LoginPageState extends State<LoginPage>
                         tileMode: TileMode.clamp),
                   ),
                   child: MaterialButton(
-                      highlightColor: Colors.transparent,
-                      splashColor: Theme.Colors.zarizGradientEnd,
-                      //shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5.0))),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10.0, horizontal: 42.0),
-                        child: Text(
-                          "כניסה",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 25.0,
-                              fontFamily: "WorkSansBold"),
-                        ),
+                    highlightColor: Colors.transparent,
+                    splashColor: Theme.Colors.zarizGradientEnd,
+                    //shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10.0, horizontal: 42.0),
+                      child: Text(
+                        "כניסה",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 25.0,
+                            fontFamily: "WorkSansBold"),
                       ),
-                      onPressed: _bLoginEnabled ? (){ onLoginPressed(loginEmailController.text, loginPasswordController.text); } : null,
+                    ),
+                    onPressed: _bLoginEnabled
+                        ? () {
+                            onLoginPressed(loginEmailController.text,
+                                loginPasswordController.text);
+                          }
+                        : null,
                   ),
                 ),
               ],
@@ -633,7 +625,7 @@ class _LoginPageState extends State<LoginPage>
                         color: Colors.white,
                         fontSize: 16.0,
                         fontFamily: "WorkSansMedium"),
-                        textDirection: TextDirection.rtl,
+                    textDirection: TextDirection.rtl,
                   )),
             ),
             Padding(
@@ -688,7 +680,7 @@ class _LoginPageState extends State<LoginPage>
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 Padding(
-                  padding: EdgeInsets.only(top: 10.0,left:10.0),
+                  padding: EdgeInsets.only(top: 10.0, left: 10.0),
                   child: GestureDetector(
                     onTap: () => showInSnackBar("Facebook button pressed"),
                     child: Container(
@@ -705,12 +697,10 @@ class _LoginPageState extends State<LoginPage>
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsets.only(top: 10.0, right:10.0),
+                  padding: EdgeInsets.only(top: 10.0, right: 10.0),
                   child: GestureDetector(
-                    onTap: ((){
-                        setState(() {
-                                                
-                                                });
+                    onTap: (() {
+                      setState(() {});
                     }),
                     child: Container(
                       padding: const EdgeInsets.all(15.0),
@@ -734,59 +724,59 @@ class _LoginPageState extends State<LoginPage>
   }
 
   void onLoginPressed(email, password) {
-    
     setState(() {
-          _bLoginEnabled = false;
-          _progressBarActive = true;
+      _bLoginEnabled = false;
+      _progressBarActive = true;
     });
     var resFuture = _services.performLogin(email, password);
-    resFuture.then((res){
-        if ((res["success"] == "true") || (res["success"] == true)) {
-            showInSnackBar(email + " שלום");
-            Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ProfilePage()),
-            );
-        } else if (res["error"].contains("Authent")) {
-            showInSnackBar("שם משתמש או סיסמא אינם רשומים במערכת");
-        } else {
-            showInSnackBar("הקשר לשרת נכשל, אנא נסה שוב מאוחר יותר");
-        }
-        setState(() {
-            _bLoginEnabled = true;
-            _progressBarActive = false;
-        });
+    resFuture.then((res) {
+      if ((res["success"] == "true") || (res["success"] == true)) {
+        showInSnackBar(email + " שלום");
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ProfilePage()),
+        );
+      } else if (res["error"].contains("Authent")) {
+        showInSnackBar("שם משתמש או סיסמא אינם רשומים במערכת");
+      } else {
+        showInSnackBar("הקשר לשרת נכשל, אנא נסה שוב מאוחר יותר");
+      }
+      setState(() {
+        _bLoginEnabled = true;
+        _progressBarActive = false;
+      });
     });
   }
-  void onSignUpPressed(username, email, password)
-  {
-      setState(() {
-          _bSignUpEnabled = false;
-      });
-      var resFuture = _services.performSignUp(username, email, password);
-      resFuture.then((res){
-        if ((res["success"] == "true") || (res["success"] == true) ){
-            if (res["isNewUser"] == "true") {
-                showInSnackBar("משתמש קיים - נכנס");
-            } else {
-                showInSnackBar(email + " שלום");
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ProfilePage()),
-                );
-            }
+
+  void onSignUpPressed(username, email, password) {
+    setState(() {
+      _bSignUpEnabled = false;
+    });
+    var resFuture = _services.performSignUp(username, email, password);
+    resFuture.then((res) {
+      if ((res["success"] == "true") || (res["success"] == true)) {
+        if (res["isNewUser"] == "false") {
+          showInSnackBar("המשתמש כבר קיים");
         } else {
-            showInSnackBar("ההרשמה נכשלה");
+          showInSnackBar(email + " שלום");
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => ProfilePage()),
+          );
         }
-        setState(() {
-            _bSignUpEnabled = true;
-        });
+      } else {
+        showInSnackBar("ההרשמה נכשלה");
+      }
+      setState(() {
+        _bSignUpEnabled = true;
       });
+    });
   }
+
   Widget _buildSignUp(BuildContext context) {
     return new Directionality(
       textDirection: TextDirection.rtl,
-      child : new Container(
+      child: new Container(
         padding: EdgeInsets.only(top: 23.0),
         child: Column(
           children: <Widget>[
@@ -825,7 +815,8 @@ class _LoginPageState extends State<LoginPage>
                               ),
                               hintText: "שם",
                               hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 16.0),
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 16.0),
                             ),
                           ),
                         ),
@@ -853,7 +844,8 @@ class _LoginPageState extends State<LoginPage>
                               ),
                               hintText: "דואר אלקטרוני",
                               hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 16.0),
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 16.0),
                             ),
                           ),
                         ),
@@ -881,7 +873,8 @@ class _LoginPageState extends State<LoginPage>
                               ),
                               hintText: "סיסמא",
                               hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 16.0),
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 16.0),
                               suffixIcon: GestureDetector(
                                 onTap: _toggleSignup,
                                 child: Icon(
@@ -916,7 +909,8 @@ class _LoginPageState extends State<LoginPage>
                               ),
                               hintText: "אישור סיסמא",
                               hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold", fontSize: 16.0),
+                                  fontFamily: "WorkSansSemiBold",
+                                  fontSize: 16.0),
                               suffixIcon: GestureDetector(
                                 onTap: _toggleSignupConfirm,
                                 child: Icon(
@@ -959,22 +953,22 @@ class _LoginPageState extends State<LoginPage>
                         tileMode: TileMode.clamp),
                   ),
                   child: MaterialButton(
-                      highlightColor: Colors.transparent,
-                      splashColor: Theme.Colors.zarizGradientEnd,
-                      //shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5.0))),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 10.0, horizontal: 42.0),
-                        child: Text(
-                          "הרשמה",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 25.0,
-                              fontFamily: "WorkSansBold"),
-                        ),
+                    highlightColor: Colors.transparent,
+                    splashColor: Theme.Colors.zarizGradientEnd,
+                    //shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10.0, horizontal: 42.0),
+                      child: Text(
+                        "הרשמה",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 25.0,
+                            fontFamily: "WorkSansBold"),
                       ),
-                      onPressed:  _bSignUpEnabled ? signupButtonPressed : null,
                     ),
+                    onPressed: _bSignUpEnabled ? signupButtonPressed : null,
+                  ),
                 ),
               ],
             ),
@@ -986,13 +980,14 @@ class _LoginPageState extends State<LoginPage>
 
   signupButtonPressed() {
     if (signupConfirmPasswordController.text != signupPasswordController.text) {
-        showInSnackBar("הסיסמאות לא תואמות");
+      showInSnackBar("הסיסמאות לא תואמות");
     } else if (signupNameController.text.isEmpty) {
-        showInSnackBar("שכחת לציין את השם");
+      showInSnackBar("שכחת לציין את השם");
     } else if (signupEmailController.text.isEmpty) {
-        showInSnackBar("שכחת לציין את כתובת הדואר האלקטרוני");
+      showInSnackBar("שכחת לציין את כתובת הדואר האלקטרוני");
     } else {
-        onSignUpPressed(signupNameController.text, signupEmailController.text, signupPasswordController.text);
+      onSignUpPressed(signupNameController.text, signupEmailController.text,
+          signupPasswordController.text);
     }
   }
 
@@ -1018,16 +1013,15 @@ class _LoginPageState extends State<LoginPage>
     });
   }
 
-   
   _toggleSignupConfirm() {
     setState(() {
       _obscureTextSignupConfirm = !_obscureTextSignupConfirm;
     });
   }
+
   getProgressDialog() {
     return Center(child: CircularProgressIndicator());
   }
-
 }
 
 const List<ChoiceLogin> choices = const <ChoiceLogin>[

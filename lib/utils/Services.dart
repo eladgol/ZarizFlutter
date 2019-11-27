@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -116,6 +117,24 @@ class Services {
   }
   Future<Map<String, dynamic>> getAllJobsAsBoss() async {
     var res = postServer("/getAllJobsAsBoss/", {});
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+            if (jResponse.containsKey("Error") && jResponse["Error"] == "no change") {
+
+            } else {
+              var jResponse2 = new Map<String, dynamic>.from(jResponse);
+              jResponse2.remove("success");
+              // toDo: update the occupation list and picture 
+              //Singleton().persistentState.setString("WorkerDetails", jResponse2.toString());
+            }
+          }
+    });
+
+    return res;
+  }
+  Future<Map<String, dynamic>> getAllJobsAsWorker() async {
+    var res = postServer("/getAllJobsAsWorker/", {});
         
     res.then((jResponse) {
           if (jResponse["success"] == true) {
