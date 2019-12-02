@@ -25,7 +25,10 @@ import 'package:zariz_app/ui/uiUtils.dart';
 import 'package:zariz_app/ui/Job_confirmDialog.dart';
 import 'package:zariz_app/ui/Job_confirmHireDialog.dart';
 import 'package:zariz_app/ui/Job_confirmFiredDialog.dart';
+import 'package:zariz_app/ui/Job_confirmResignDialog.dart';
 import 'package:latlong/latlong.dart';
+
+import 'dart:math';
 
 class CurrentLocation {
   double lat = 0.0;
@@ -133,13 +136,31 @@ class JobsDetails {
       };
 }
 
+class JobDetailsForWorkerUI {
+  double _angle = 0;
+  AnimationController _angleController;
+  bool bIsExpanded = false;
+  JobDetailsForWorkerUI(_ProfilePageState t) {
+    _angleController =
+        AnimationController(vsync: t, duration: Duration(milliseconds: 500));
+    _angleController.addListener(() {
+      t.setState(() {
+        _angle = _angleController.value * 180 / 360 * 2 * pi;
+      });
+    });
+  }
+}
+
 class JobDetailsForWorker {
   JobsDetails jd;
   BossDetails bd;
   bool bAuthorized = false;
   bool bResponded = false;
   bool bHired = false;
-  bool bIsExpanded = false;
+  JobDetailsForWorkerUI ui;
+  JobDetailsForWorker(_ProfilePageState t) {
+    ui = new JobDetailsForWorkerUI(t);
+  }
 }
 
 class WorkerDetails {
@@ -233,7 +254,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 //enum SortType {LastName, FirstName, DistFromLocation, DistFromAddress}
-final List<String> _sSortWorkersForJob = [
+final List<String> _sSortTypes = [
   'מיין לפי שם משפחה',
   'מיין לפי שם פרטי',
   'מיין לפי מרחק ממיקום נוכחי',
@@ -376,9 +397,12 @@ class _ProfilePageState extends State<ProfilePage>
   WorkerDetails _workerDetails = new WorkerDetails();
 
   int _sortTypeWorkersForJob = 0;
-  bool _bSortAsscending = true;
+  int _sortTypeJobsForWorker = 0;
+  bool _bSortAsscendingWorkersForJob = true;
+  bool _bSortAsscendingJobsForWorker = true;
 
   Color _zarizGradientColorAnimation;
+  var _angle = 0.0;
 
   @override
   void dispose() {
@@ -392,6 +416,9 @@ class _ProfilePageState extends State<ProfilePage>
     myFocusNodeBossLastName.dispose();
     myFocusNodeBossBuisnessName.dispose();
     myFocusNodeBossPlace.dispose();
+    for (var j in _jobDetailsForWorkerList) {
+      j?.ui?._angleController?.dispose();
+    }
     _switchAnimController.dispose();
     _pageController?.dispose();
     super.dispose();
@@ -502,6 +529,30 @@ class _ProfilePageState extends State<ProfilePage>
             print("fired job before refresh");
             var res2 = refreshJobs();
           });
+        } else if (message["data"]["message_status"] == "Resigned") {
+          var resUpdateFired = _services.confirmHire(
+              message["data"]["jobID"], message["data"]["workerID"], false);
+          resUpdateFired.then((s) {
+            print("resigned job status updated");
+          });
+          String sMsg = "${message["data"]["discription"]} \n";
+          sMsg +=
+              "\n הודעת התפטרות! ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+          sMsg += "שכר ${message["data"]["wage"]}\n";
+          sMsg += "מיקום ${message["data"]["place"]}\n";
+          final res = Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => JobConfirmResignPage(
+                      sTitle: sMsg,
+                      jobID: message["data"]["jobID"],
+                      workerID: message["data"]["workerID"],
+                    )),
+          );
+          res.then((s) {
+            print("resigned job before refresh");
+            var res2 = refreshJobs();
+          });
         }
       },
       onLaunch: (Map<String, dynamic> message) async {
@@ -558,6 +609,30 @@ class _ProfilePageState extends State<ProfilePage>
           );
           res.then((s) {
             print("fired job before refresh");
+            var res2 = refreshJobs();
+          });
+        }else if (message["data"]["message_status"] == "Resigned") {
+          var resUpdateFired = _services.confirmHire(
+              message["data"]["jobID"], message["data"]["workerID"], false);
+          resUpdateFired.then((s) {
+            print("resigned job status updated");
+          });
+          String sMsg = "${message["data"]["discription"]} \n";
+          sMsg +=
+              "\n הודעת התפטרות! ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+          sMsg += "שכר ${message["data"]["wage"]}\n";
+          sMsg += "מיקום ${message["data"]["place"]}\n";
+          final res = Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => JobConfirmResignPage(
+                      sTitle: sMsg,
+                      jobID: message["data"]["jobID"],
+                      workerID: message["data"]["workerID"],
+                    )),
+          );
+          res.then((s) {
+            print("resigned job before refresh");
             var res2 = refreshJobs();
           });
         }
@@ -618,6 +693,30 @@ class _ProfilePageState extends State<ProfilePage>
           );
           res.then((s) {
             print("fired job before refresh");
+            var res2 = refreshJobs();
+          });
+        }else if (message["data"]["message_status"] == "Resigned") {
+          var resUpdateFired = _services.confirmHire(
+              message["data"]["jobID"], message["data"]["workerID"], false);
+          resUpdateFired.then((s) {
+            print("resigned job status updated");
+          });
+          String sMsg = "${message["data"]["discription"]} \n";
+          sMsg +=
+              "\n הודעת התפטרות! ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+          sMsg += "שכר ${message["data"]["wage"]}\n";
+          sMsg += "מיקום ${message["data"]["place"]}\n";
+          final res = Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => JobConfirmResignPage(
+                      sTitle: sMsg,
+                      jobID: message["data"]["jobID"],
+                      workerID: message["data"]["workerID"],
+                    )),
+          );
+          res.then((s) {
+            print("resigned job before refresh");
             var res2 = refreshJobs();
           });
         }
@@ -1277,7 +1376,7 @@ class _ProfilePageState extends State<ProfilePage>
             .._lng = b["lng"]
             .._photoAGCSPath = b["photoAGCSPath"]
             .._place = b["place"];
-          JobDetailsForWorker jdw = new JobDetailsForWorker()
+          JobDetailsForWorker jdw = new JobDetailsForWorker(this)
             ..bd = bd
             ..jd = jd
             ..bResponded = resJ["bResponded"]
@@ -2261,7 +2360,7 @@ class _ProfilePageState extends State<ProfilePage>
     return _buildJobsAsWorkerPanel();
   }
 
-  Widget buildWorkerJobTile(JobDetailsForWorker item) {
+  Widget buildWorkerJobTileWithButton(JobDetailsForWorker item) {
     return new Card(
         elevation: 2.0,
         color: Colors.white54,
@@ -2294,63 +2393,244 @@ class _ProfilePageState extends State<ProfilePage>
                           ? Icon(FontAwesomeIcons.exclamation)
                           : Icon(FontAwesomeIcons.question)),
             ),
-            onPressed: (() {}),
+            onPressed: (() {
+              if (!item.bAuthorized) {
+                _services.confirmJob(item.jd._jobId, true).then((res) {
+                  if (res.containsKey("success") &&
+                      ((res["success"] == "true") ||
+                          (res["success"] == true))) {
+                    var res2 = refreshJobs();
+                    res2.then((bSuccess) {
+                      if (bSuccess) {
+                        setState(() {});
+                      }
+                    });
+                  }
+                });
+              } else {
+                _services.confirmJob(item.jd._jobId, false).then((res) {
+                  if (res.containsKey("success") &&
+                      ((res["success"] == "true") ||
+                          (res["success"] == true))) {
+                    var res2 = refreshJobs();
+                    res2.then((bSuccess) {
+                      if (bSuccess) {
+                        setState(() {});
+                      }
+                    });
+                  }
+                });
+              }
+            }),
             shape: new CircleBorder(),
           ),
-          createTitle(item.jd._discription),
+          new Expanded(child: createTitle(item.jd._discription)),
+          new Align(
+              alignment: Alignment.centerRight,
+              child: Transform.rotate(
+                  angle: item.ui._angle,
+                  child: new Icon(
+                    Icons.arrow_downward,
+                    size: 24.0,
+                  ))),
         ])));
   }
 
+  Widget _buildTileHeaderJobsAsWorkerPanel(JobDetailsForWorker item) {
+    return Row(children: <Widget>[
+      new Expanded(
+          child: new Container(
+              child: new GestureDetector(
+        child: buildWorkerJobTileWithButton(item),
+        onTap: () {
+          setState(() {
+            if (item.ui._angleController.status == AnimationStatus.completed) {
+              item.ui._angleController.reverse();
+            } else {
+              item.ui._angleController.forward();
+            }
+            item.ui.bIsExpanded = !item.ui.bIsExpanded;
+          });
+        },
+      )))
+    ]);
+  }
+
   Widget _buildJobsAsWorkerPanel() {
-    return (_jobDetailsForWorkerList == null ||
-            _jobDetailsForWorkerList.length == 0)
+    if (_jobDetailsForWorkerList == null)
+    {
+       return new Container(child: createTitle("אין עבודות"));
+    }
+    List<JobDetailsForWorker> jobsToShowTemp =
+        new List.from(_jobDetailsForWorkerList);
+    List<JobDetailsForWorker> jobsToShow = [];
+    jobsToShowTemp.forEach((j) {
+      try {
+        if (!j.bAuthorized && !j.bHired && j.bResponded) {
+          jobsToShow.add(j);
+        } else {
+          jobsToShow.add(j);
+        }
+      } catch (e) {}
+    });
+    if (_sortTypeJobsForWorker == 0) {
+      //SortType.LastName.index) {
+      jobsToShow.sort((a, b) {
+        return (_bSortAsscendingJobsForWorker ? a : b)
+            .bd
+            ._lastName
+            .toString()
+            .toLowerCase()
+            .compareTo((_bSortAsscendingJobsForWorker ? b : a)
+                .bd
+                ._lastName
+                .toString()
+                .toLowerCase());
+      });
+    } else if (_sortTypeJobsForWorker == 1) {
+      //SortType.FirstName.index) {
+      jobsToShow.sort((a, b) {
+        return (_bSortAsscendingJobsForWorker ? a : b)
+            .bd
+            ._firstName
+            .toString()
+            .toLowerCase()
+            .compareTo((_bSortAsscendingJobsForWorker ? b : a)
+                .bd
+                ._firstName
+                .toString()
+                .toLowerCase());
+      });
+    } else if (_sortTypeJobsForWorker == 2) {
+      //SortType.DistFromAddress.index) {
+      jobsToShow.sort((a, b) {
+        final Distance distance = new Distance();
+        final double meter = distance(
+            new LatLng(a.jd._lat, a.jd._lng), new LatLng(b.jd._lat, b.jd._lng));
+        int iMeter = (meter > 0) ? 1 : -1;
+        return _bSortAsscendingJobsForWorker ? iMeter : iMeter * -1;
+      });
+    } else if (_sortTypeJobsForWorker == 3) {
+      //SortType.DistFromLocation.index) {
+      jobsToShow.sort((a, b) {
+        final Distance distance = new Distance();
+        final double meterA = distance(new LatLng(a.jd._lat, a.jd._lng),
+            new LatLng(_currLocation.lat, _currLocation.lng));
+        final double meterB = distance(new LatLng(b.jd._lat, b.jd._lng),
+            new LatLng(_currLocation.lat, _currLocation.lng));
+        final int dist = meterA > meterB ? 1 : -1;
+        return (_bSortAsscendingJobsForWorker ? dist : (dist * -1));
+      });
+    }
+    var w = MediaQuery.of(context).size.width;
+    var h = MediaQuery.of(context).size.height;
+
+    Widget sortText = createTitleNoPadding(_sSortTypes[_sortTypeJobsForWorker],
+        textSize: 10.0, bLeft: true);
+
+    return (jobsToShow == null || jobsToShow.length == 0)
         ? Container(child: createTitle("אין עבודות"))
         : new SingleChildScrollView(
-            child: new Directionality(
-                textDirection: TextDirection.rtl,
-                child: new AnimatedContainer(
-                    duration: new Duration(milliseconds: 500),
-                    decoration: decorationBossWorker(context, true),
-                    padding: EdgeInsets.only(top: 5.0),
-                    //child: new SingleChildScrollView (
-                    child: new ExpansionPanelList(
-                      expansionCallback: (int index, bool bIsExpanded) {
-                        setState(() {
-                          _jobDetailsForWorkerList[index].bIsExpanded = !bIsExpanded;
-                        });
-                      },
-                      children: _jobDetailsForWorkerList
-                          .map<ExpansionPanel>((JobDetailsForWorker item) {
-                        return ExpansionPanel(
-                          headerBuilder:
-                              (BuildContext context, bool bIsExpanded) {
-                            return AnimatedContainer(
-                                duration: new Duration(milliseconds: 500),
-                                decoration: decorationBossWorker(context, true),
-                                padding: EdgeInsets.only(top: 5.0),
-                                child: new ListTile(
-                                  title: buildWorkerJobTile(item),
-                                ));
-                          },
-                          body: new AnimatedContainer(
-                              duration: new Duration(milliseconds: 500),
-                              decoration: decorationBossWorker(context, true),
-                              padding: EdgeInsets.only(top: 5.0),
-                              child: new ListTile(
-                                  title: createTitle(
-                                      "שם העסק ${item.bd._buisnessName} \nשם המעסיק ${item.bd._firstName} ${item.bd._lastName}\nשכר ${item.jd._wage}\nמיקום ${item.jd._place}\n"),
-                                  subtitle: Text(
-                                      'To delete this Panel, tap the trash can icon'),
-                                  trailing: Icon(Icons.delete),
-                                  onTap: () {
-                                    // setState(() {
-                                    //   _jobDetailsForWorkerList.removeWhere((currentItem) => item == currentItem);
-                                    // });
-                                  })),
-                          //isExpanded: item.bIsExpanded,
-                        );
-                      }).toList(),
-                    ))));
+            child: new Container(
+                decoration: decorationBossWorker(context, true),
+                child: Theme(
+                    data: Theme.of(context).copyWith(
+                        cardColor: ZarizTheme.Colors.zarizGradientStart),
+                    child: new Directionality(
+                        textDirection: TextDirection.rtl,
+                        child: new AnimatedContainer(
+                            duration: new Duration(milliseconds: 500),
+                            decoration: decorationBossWorker(context, true),
+                            padding: EdgeInsets.only(top: 5.0),
+                            child: new Column(children: <Widget>[
+                              Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+
+                                      //width: (l[0].left - l[0].right)*2,
+                                      width: w / 2,
+                                      height: h / 15,
+                                      child: new Card(
+                                          elevation: 6.0,
+                                          color: Colors.white54,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(4.0),
+                                          ),
+                                          child: new Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.end,
+                                              textDirection: TextDirection.rtl,
+                                              children: <Widget>[
+                                                new Flexible(
+                                                    child: new GestureDetector(
+                                                        child: Padding(
+                                                            padding:
+                                                                EdgeInsets.only(
+                                                                    right: 2.0),
+                                                            child: sortText),
+                                                        onTap: () {
+                                                          setState(() {
+                                                            _sortTypeJobsForWorker++;
+                                                            _sortTypeJobsForWorker =
+                                                                _sortTypeJobsForWorker %
+                                                                    _sSortTypes
+                                                                        .length;
+                                                          });
+                                                        })),
+                                                new Flexible(
+                                                    child: IconButton(
+                                                  icon: Icon(
+                                                      _bSortAsscendingJobsForWorker
+                                                          ? FontAwesomeIcons
+                                                              .arrowUp
+                                                          : FontAwesomeIcons
+                                                              .arrowDown,
+                                                      size: 12.0),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _bSortAsscendingJobsForWorker =
+                                                          !_bSortAsscendingJobsForWorker;
+                                                    });
+                                                  },
+                                                )),
+                                              ])))),
+                              for (var item in jobsToShow)
+                                item.ui.bIsExpanded
+                                    ? AnimatedContainer(
+                                        duration:
+                                            new Duration(milliseconds: 500),
+                                        decoration:
+                                            decorationBossWorker(context, true),
+                                        padding: EdgeInsets.only(top: 5.0),
+                                        child:
+                                            _buildTileHeaderJobsAsWorkerPanel(
+                                                item))
+                                    : AnimatedContainer(
+                                        duration:
+                                            new Duration(milliseconds: 500),
+                                        decoration:
+                                            decorationBossWorker(context, true),
+                                        padding: EdgeInsets.only(top: 5.0),
+                                        child: new Column(children: <Widget>[
+                                          _buildTileHeaderJobsAsWorkerPanel(
+                                              item),
+                                          ListTile(
+                                              title: createTitle(
+                                                  "שם העסק ${item.bd._buisnessName} \nשם המעסיק ${item.bd._firstName} ${item.bd._lastName}\nשכר ${item.jd._wage}\nמיקום ${item.jd._place}\n"),
+                                              // subtitle: Text(
+                                              //     'To delete this Panel, tap the trash can icon'),
+                                              //trailing: IconButton(icon: Icon(Icons.delete), onPressed: (){
+
+                                              //},),
+                                              onTap: () {
+                                                setState(() {
+                                                  item.ui.bIsExpanded =
+                                                      !item.ui.bIsExpanded;
+                                                });
+                                              })
+                                        ]))
+                            ]))))));
   }
 
   Widget _buildBossJobsCarousel(BuildContext context) {
@@ -2477,22 +2757,26 @@ class _ProfilePageState extends State<ProfilePage>
     if (_sortTypeWorkersForJob == 0) {
       //SortType.LastName.index) {
       lWorkersToShow.sort((a, b) {
-        return (_bSortAsscending ? a : b)
+        return (_bSortAsscendingWorkersForJob ? a : b)
             ._lastName
             .toString()
             .toLowerCase()
-            .compareTo(
-                (_bSortAsscending ? b : a)._lastName.toString().toLowerCase());
+            .compareTo((_bSortAsscendingWorkersForJob ? b : a)
+                ._lastName
+                .toString()
+                .toLowerCase());
       });
     } else if (_sortTypeWorkersForJob == 1) {
       //SortType.FirstName.index) {
       lWorkersToShow.sort((a, b) {
-        return (_bSortAsscending ? a : b)
+        return (_bSortAsscendingWorkersForJob ? a : b)
             ._firstName
             .toString()
             .toLowerCase()
-            .compareTo(
-                (_bSortAsscending ? b : a)._firstName.toString().toLowerCase());
+            .compareTo((_bSortAsscendingWorkersForJob ? b : a)
+                ._firstName
+                .toString()
+                .toLowerCase());
       });
     } else if (_sortTypeWorkersForJob == 2) {
       //SortType.DistFromAddress.index) {
@@ -2501,7 +2785,7 @@ class _ProfilePageState extends State<ProfilePage>
         final double meter =
             distance(new LatLng(a._lat, a._lng), new LatLng(b._lat, b._lng));
         int iMeter = (meter > 0) ? 1 : -1;
-        return _bSortAsscending ? iMeter : iMeter * -1;
+        return _bSortAsscendingWorkersForJob ? iMeter : iMeter * -1;
       });
     } else if (_sortTypeWorkersForJob == 3) {
       //SortType.DistFromLocation.index) {
@@ -2512,17 +2796,15 @@ class _ProfilePageState extends State<ProfilePage>
         final double meterB = distance(new LatLng(b._lat, b._lng),
             new LatLng(_currLocation.lat, _currLocation.lng));
         final int dist = meterA > meterB ? 1 : -1;
-        return (_bSortAsscending ? dist : (dist * -1));
+        return (_bSortAsscendingWorkersForJob ? dist : (dist * -1));
       });
     }
 
     var w = MediaQuery.of(context).size.width;
     var h = MediaQuery.of(context).size.height;
 
-    Widget sortText = createTitleNoPadding(
-        _sSortWorkersForJob[_sortTypeWorkersForJob],
-        textSize: 10.0,
-        bLeft: true);
+    Widget sortText = createTitleNoPadding(_sSortTypes[_sortTypeWorkersForJob],
+        textSize: 10.0, bLeft: true);
 
     return new Directionality(
       textDirection: TextDirection.rtl,
@@ -2554,19 +2836,20 @@ class _ProfilePageState extends State<ProfilePage>
                                       _sortTypeWorkersForJob++;
                                       _sortTypeWorkersForJob =
                                           _sortTypeWorkersForJob %
-                                              _sSortWorkersForJob.length;
+                                              _sSortTypes.length;
                                     });
                                   })),
                           new Flexible(
                               child: IconButton(
                             icon: Icon(
-                                _bSortAsscending
+                                _bSortAsscendingWorkersForJob
                                     ? FontAwesomeIcons.arrowUp
                                     : FontAwesomeIcons.arrowDown,
                                 size: 12.0),
                             onPressed: () {
                               setState(() {
-                                _bSortAsscending = !_bSortAsscending;
+                                _bSortAsscendingWorkersForJob =
+                                    !_bSortAsscendingWorkersForJob;
                               });
                             },
                           )),

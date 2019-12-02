@@ -4,18 +4,18 @@ import 'package:zariz_app/ui/uiUtils.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 
-class JobConfirmFiredPage extends StatefulWidget {
+class JobConfirmResignPage extends StatefulWidget {
   final String sTitle;
   final String jobID;
   final String workerID;
-  JobConfirmFiredPage({Key key, this.sTitle, this.jobID, this.workerID})
+  JobConfirmResignPage({Key key, this.sTitle, this.jobID, this.workerID})
       : super(key: key);
 
   @override
-  _JobConfirmFiredPageState createState() => new _JobConfirmFiredPageState();
+  _JobConfirmResignPageState createState() => new _JobConfirmResignPageState();
 }
 
-class _JobConfirmFiredPageState extends State<JobConfirmFiredPage> {
+class _JobConfirmResignPageState extends State<JobConfirmResignPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
   bool _bUpdating = false;
   String sTitle = "";
@@ -27,7 +27,7 @@ class _JobConfirmFiredPageState extends State<JobConfirmFiredPage> {
     workerID = widget.workerID;
     return new Scaffold(
         appBar: AppBar(
-          title: Text('הוחלט שלא להעסיק אותך'),
+          title: Text('הודעת התפטרות'),
         ),
         key: _scaffoldKey,
         body: NotificationListener<OverscrollIndicatorNotification>(
@@ -64,7 +64,7 @@ class _JobConfirmFiredPageState extends State<JobConfirmFiredPage> {
                     ? new CircularProgressIndicator(
                         backgroundColor: Theme.Colors.zarizGradientStart)
                     : new Container(),
-                createTextField(" הוחלט שלא להעסיק אותך", null, null, null,
+                createTextField(" הודעת התפטרות", null, null, null,
                     textSize: 32.0, bCenter: true),
                 createTextField(sTitle, null, null, null,
                     bCenter: true, maxLines: 4),
