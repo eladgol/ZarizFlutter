@@ -752,6 +752,17 @@ class _ProfilePageState extends State<ProfilePage>
         _workerDetails._wage = res["wage"];
         _workerDetails._place = res["place"];
 
+        if (_workerDetails._photoAGCSPath != '') {
+          getImageFromNetwork(_workerDetails._photoAGCSPath).then((f){
+            var res = getResolution(Image.file(f));
+            res.then((info) {
+              Image image = getAdjustedImageFromFile(f, info);
+              setState(() {
+                _image = image;
+              });
+            });
+          });
+        }
         _controllerWorkerFirstName.text = _workerDetails._firstName;
         _controllerWorkerLastName.text = _workerDetails._lastName;
         _controllerWorkerPlace.text = _workerDetails._place;
@@ -944,7 +955,7 @@ class _ProfilePageState extends State<ProfilePage>
       });
       String fileName;
       try {
-        String fileName = Singleton().persistentState.getString('profilePic');
+        fileName = Singleton().persistentState.getString('profilePic');
       } catch (e) {}
 
       if (fileName == null) {
@@ -1264,7 +1275,7 @@ class _ProfilePageState extends State<ProfilePage>
             LayoutBuilder(builder: (context, constraint) {
               return new IconButton(
                 icon: new Icon(FontAwesomeIcons.check,
-                    size: constraint.biggest.height * 0.5),
+                    size: constraint.biggest.height * 0.51),
                 onPressed: () {
                   _select(choices[0]);
                 },

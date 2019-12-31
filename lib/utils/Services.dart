@@ -7,8 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 
 
-const sDefaultIP = "192.168.1.13";
-const sDefaultPORT = 8080;
+const sDefaultIP = "192.168.1.13";//"https://zariz-204206.appspot.com/";
+const sDefaultPORT = 8080;//443;
 
 typedef Future<bool> HttpAuthenticationCallback(
       Uri uri, String scheme, String realm);
@@ -415,10 +415,27 @@ void retreivePersistentState(SharedPreferences o) async {
 Future<String> saveImage( List<int> imageBytes, String ext) async {
   String sDir = (await getApplicationDocumentsDirectory()).path;
   String sFileName = sDir + "/profilePic." + ext;
-  if (await File(sFileName).exists()) {
+  try {
+    if (await File(sFileName).exists()) {
       await File(sFileName).delete();
+    }
+  } catch (e) {
   }
-  await new File(sFileName).writeAsBytes(imageBytes);
-  Singleton().persistentState.setString("profilePic", sFileName);
+  try {
+    await new File(sFileName).writeAsBytes(imageBytes);
+    Singleton().persistentState.setString("profilePic", sFileName);
+  } catch (e) {
+  }
+  
+  
   return sFileName;
 }   
+ Future<File> getImageFromNetwork(String url) async {
+     var response = await http.get(url);
+     var sFileName = Singleton().persistentState.getString("profilePic");
+     if (await File(sFileName).exists()) {
+      await File(sFileName).delete();
+     }
+     var file = await new File(sFileName).writeAsBytes(response.bodyBytes);
+     return file;
+  }
