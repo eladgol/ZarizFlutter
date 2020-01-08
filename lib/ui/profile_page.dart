@@ -213,30 +213,41 @@ class AppBarChoice {
   final String title;
 }
 
+// List<String> fixEncoding(String sIn) {
+//   String sEncoded = sIn.replaceAll(new RegExp(r"u|'|\[|\]"), "");
+//   List<String> lEncoded = sEncoded.split(',');
+//   List<String> lOut = new List<String>();
+//   lEncoded.forEach((e) {
+//     e = e.trim();
+//     var chars = e.split(new RegExp(r"\\| ")).skip(1).toList();
+//     var sOut = "";
+//     chars.forEach((c) {
+//       if ((c != " u'") && (!c.contains("["))) {
+//         if (c == "")
+//           sOut += " ";
+//         else
+//           sOut += decodeUtf16([
+//             int.parse(c.substring(0, 2), radix: 16),
+//             int.parse(c.substring(2, 4), radix: 16)
+//           ]);
+//         //sOut += decodeUtf16(hex.decode(c));
+//       }
+//     });
+//     lOut.add(sOut);
+//   });
+//   return lOut;
+// }
+
 List<String> fixEncoding(String sIn) {
   String sEncoded = sIn.replaceAll(new RegExp(r"u|'|\[|\]"), "");
   List<String> lEncoded = sEncoded.split(',');
   List<String> lOut = new List<String>();
   lEncoded.forEach((e) {
-    e = e.trim();
-    var chars = e.split(new RegExp(r"\\| ")).skip(1).toList();
-    var sOut = "";
-    chars.forEach((c) {
-      if ((c != " u'") && (!c.contains("["))) {
-        if (c == "")
-          sOut += " ";
-        else
-          sOut += decodeUtf16([
-            int.parse(c.substring(0, 2), radix: 16),
-            int.parse(c.substring(2, 4), radix: 16)
-          ]);
-        //sOut += decodeUtf16(hex.decode(c));
-      }
-    });
-    lOut.add(sOut);
+    lOut.add(e.trim());
   });
   return lOut;
 }
+
 
 List<AppBarChoice> choices = <AppBarChoice>[
   AppBarChoice(title: 'update', icon: Icons.check),
@@ -2046,7 +2057,9 @@ class _ProfilePageState extends State<ProfilePage>
         iconSize: 30.0,
         isExpanded: true,
         items: _lOccupationDropDown,
-        hint: createTextWithIcon(_jobPlaceText, FontAwesomeIcons.hammer),
+        hint: createTextWithIcon(job.details._lOccupationFieldListString.length > 0
+            ? job.details._lOccupationFieldListString[0]
+            : _jobPlaceText, FontAwesomeIcons.hammer),
         style: TextStyle(
             fontFamily: "WorkSansSemiBold",
             fontSize: 16.0,
