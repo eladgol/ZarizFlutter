@@ -171,7 +171,7 @@ class WorkerDetails {
   List<String> _lOccupationFieldListString;
   String _photoAGCSPath;
   String _place;
-  double _radius;
+  //double _radius;
   int _userID;
   double _wage;
 
@@ -181,7 +181,7 @@ class WorkerDetails {
         'wage': _wage.toString(),
         'userID': _userID.toString(),
         'photoAGCSPath': _photoAGCSPath,
-        'radius': _radius.toString(),
+        //'radius': _radius.toString(),
         'place': _place,
         'lat': _lat.toString(),
         'lng': _lng.toString(),
@@ -248,7 +248,6 @@ List<String> fixEncoding(String sIn) {
   return lOut;
 }
 
-
 List<AppBarChoice> choices = <AppBarChoice>[
   AppBarChoice(title: 'update', icon: Icons.check),
   AppBarChoice(title: 'jobs', icon: FontAwesomeIcons.screwdriver),
@@ -286,11 +285,10 @@ class _ProfilePageState extends State<ProfilePage>
   final FocusNode myFocusNodeBossFirstName = FocusNode();
   final FocusNode myFocusNodeBossLastName = FocusNode();
   final FocusNode myFocusNodeBossPlace = FocusNode();
-  final FocusNode myFocusNodeEmail = FocusNode();
   final FocusNode myFocusNodeFirstName = FocusNode();
   final FocusNode myFocusNodeLastName = FocusNode();
   final FocusNode myFocusNodePlace = FocusNode();
-  final FocusNode myFocusNodeRadius = FocusNode();
+  //final FocusNode myFocusNodeRadius = FocusNode();
   final FocusNode myFocusNodeWage = FocusNode();
   Color right = Colors.white;
 
@@ -321,13 +319,15 @@ class _ProfilePageState extends State<ProfilePage>
 
   AndroidDeviceInfo _androidInfo;
   bool _bBossMode = false;
-  bool _bExpandOccupation = false;
+
   bool _bIsLoadingPlaces = false;
   bool _bJobMenu = false;
   BossDetails _bossDetails = new BossDetails();
   bool _bShrinkJobMenu = false;
   bool _bUpdatingDetails = false;
   bool _bWorkerIsUpdated = true;
+  bool _bWorkerDetailsAreFull = false;
+  bool _bBossDetailsAreFull = false;
   List<Color> _colorOccupation = new List<Color>.filled(
       _lDefaultPossibleOccupation.length, uncheckedColor);
   TextEditingController _controllerBossBuisnessName =
@@ -337,7 +337,7 @@ class _ProfilePageState extends State<ProfilePage>
       new TextEditingController();
   TextEditingController _controllerWorkerLastName = new TextEditingController();
   TextEditingController _controllerWorkerPlace = new TextEditingController();
-  TextEditingController _controllerWorkerRadius = new TextEditingController();
+  //TextEditingController _controllerWorkerRadius = new TextEditingController();
   TextEditingController _controllerWorkerWage = new TextEditingController();
   CarosuelState _cs;
   String _currentJobId = "";
@@ -417,12 +417,11 @@ class _ProfilePageState extends State<ProfilePage>
 
   @override
   void dispose() {
-    myFocusNodeEmail.dispose();
     myFocusNodeFirstName.dispose();
     myFocusNodeLastName.dispose();
     myFocusNodeWage.dispose();
     myFocusNodePlace.dispose();
-    myFocusNodeRadius.dispose();
+    //myFocusNodeRadius.dispose();
     myFocusNodeBossFirstName.dispose();
     myFocusNodeBossLastName.dispose();
     myFocusNodeBossBuisnessName.dispose();
@@ -622,7 +621,7 @@ class _ProfilePageState extends State<ProfilePage>
             print("fired job before refresh");
             var res2 = refreshJobs();
           });
-        }else if (message["data"]["message_status"] == "Resigned") {
+        } else if (message["data"]["message_status"] == "Resigned") {
           var resUpdateFired = _services.confirmHire(
               message["data"]["jobID"], message["data"]["workerID"], false);
           resUpdateFired.then((s) {
@@ -706,7 +705,7 @@ class _ProfilePageState extends State<ProfilePage>
             print("fired job before refresh");
             var res2 = refreshJobs();
           });
-        }else if (message["data"]["message_status"] == "Resigned") {
+        } else if (message["data"]["message_status"] == "Resigned") {
           var resUpdateFired = _services.confirmHire(
               message["data"]["jobID"], message["data"]["workerID"], false);
           resUpdateFired.then((s) {
@@ -759,12 +758,12 @@ class _ProfilePageState extends State<ProfilePage>
         _workerDetails._lat = res["lat"];
         _workerDetails._lng = res["lng"];
         _workerDetails._photoAGCSPath = res["photoAGCSPath"];
-        _workerDetails._radius = res["radius"];
+        //_workerDetails._radius = res["radius"];
         _workerDetails._wage = res["wage"];
         _workerDetails._place = res["place"];
-
+        _bWorkerDetailsAreFull = res["detailsFull"];
         if (_workerDetails._photoAGCSPath != '') {
-          getImageFromNetwork(_workerDetails._photoAGCSPath).then((f){
+          getImageFromNetwork(_workerDetails._photoAGCSPath).then((f) {
             var res = getResolution(Image.file(f));
             res.then((info) {
               Image image = getAdjustedImageFromFile(f, info);
@@ -778,7 +777,7 @@ class _ProfilePageState extends State<ProfilePage>
         _controllerWorkerLastName.text = _workerDetails._lastName;
         _controllerWorkerPlace.text = _workerDetails._place;
         _controllerWorkerWage.text = _workerDetails._wage.toString();
-        _controllerWorkerRadius.text = _workerDetails._radius.toString();
+        //_controllerWorkerRadius.text = _workerDetails._radius.toString();
 
         _controllerWorkerFirstName.addListener(() {
           setState(() {
@@ -798,12 +797,12 @@ class _ProfilePageState extends State<ProfilePage>
             _bWorkerIsUpdated = false;
           });
         });
-        _controllerWorkerRadius.addListener(() {
-          setState(() {
-            _workerDetails._radius = double.parse(_controllerWorkerRadius.text);
-            _bWorkerIsUpdated = false;
-          });
-        });
+        // _controllerWorkerRadius.addListener(() {
+        //   setState(() {
+        //     _workerDetails._radius = double.parse(_controllerWorkerRadius.text);
+        //     _bWorkerIsUpdated = false;
+        //   });
+        // });
         _controllerWorkerPlace.addListener(() {
           _textForAutoCompleteWorkerChanged();
           setState(() {
@@ -859,7 +858,7 @@ class _ProfilePageState extends State<ProfilePage>
         _controllerBossBuisnessName.text = _bossDetails._buisnessName;
 
         _controllerBossPlace.text = _bossDetails._place;
-
+        _bBossDetailsAreFull = res["detailsFull"];
         _controllerWorkerFirstName.addListener(() {
           setState(() {
             _bossDetails._firstName = _controllerWorkerFirstName.text;
@@ -989,6 +988,7 @@ class _ProfilePageState extends State<ProfilePage>
 
           _workerDetails._photoAGCSPath = _imageFileBase64Data;
           _services.updateInputForm(_workerDetails.toJSON()).then((res) {
+            _bWorkerDetailsAreFull = res["detailsFull"];
             if (res.containsKey("success") &&
                 ((res["success"] == "true") || (res["success"] == true))) {
               setState(() {
@@ -1000,6 +1000,7 @@ class _ProfilePageState extends State<ProfilePage>
           _services.updateBossInputForm(_bossDetails.toJSON()).then((res) {
             if (res.containsKey("success") &&
                 ((res["success"] == "true") || (res["success"] == true))) {
+              _bBossDetailsAreFull = res["detailsFull"];
               setState(() {
                 _bWorkerIsUpdated = true;
                 _bUpdatingDetails = false;
@@ -1068,6 +1069,16 @@ class _ProfilePageState extends State<ProfilePage>
       if (choice.title == "jobs") {
         setState(() {
           _bJobMenu = !_bJobMenu;
+          if (_bJobMenu) {
+            var res2 = refreshJobs();
+            res2.then((bSuccess) {
+              if (bSuccess) {
+                setState(() {
+                  _bUpdatingDetails = false;
+                });
+              }
+            });
+          }
         });
       }
       // if (choice.title == "debug") {
@@ -1272,6 +1283,9 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget buildFrame(BuildContext context, Widget internalWidget,
       GlobalKey<ScaffoldState> scaffoldKey) {
+    bool bDetailsAreFull = (_bBossMode && _bBossDetailsAreFull) ||
+        (!_bBossMode && _bWorkerDetailsAreFull);
+
     return new Directionality(
       textDirection: TextDirection.rtl,
       child: new Scaffold(
@@ -1307,10 +1321,15 @@ class _ProfilePageState extends State<ProfilePage>
                         color: ZarizTheme.Colors.zarizGradientStart2)
                     : Icon(FontAwesomeIcons.hammer,
                         size: constraint.biggest.height * 0.45,
-                        color: ZarizTheme.Colors.zarizGradientStart),
+                        color: bDetailsAreFull
+                            ? ZarizTheme.Colors.zarizGradientStart
+                            : Colors.grey),
+                disabledColor: Colors.grey,
                 tooltip: _bJobMenu ? "עריכת פרטים" : "הצגת עבודות",
                 onPressed: () {
-                  _select(choices[1]);
+                  bDetailsAreFull
+                      ? _select(choices[1])
+                      : showInSnackBar("הפרטים לא מלאים");
                 },
               );
             }),
@@ -1440,7 +1459,7 @@ class _ProfilePageState extends State<ProfilePage>
                   .._lat = res["lat"]
                   .._lng = res["lng"]
                   .._photoAGCSPath = res["_photoAGCSPath"]
-                  .._radius = res["radius"]
+                  // .._radius = res["radius"]
                   .._wage = res["wage"]
                   .._place = res["place"]
                   .._userID = res["userID"]);
@@ -1468,7 +1487,7 @@ class _ProfilePageState extends State<ProfilePage>
                   .._lat = res["lat"]
                   .._lng = res["lng"]
                   .._photoAGCSPath = res["_photoAGCSPath"]
-                  .._radius = res["radius"]
+                  // .._radius = res["radius"]
                   .._wage = res["wage"]
                   .._place = res["place"]
                   .._userID = res["userID"]);
@@ -1497,7 +1516,7 @@ class _ProfilePageState extends State<ProfilePage>
                   .._lat = res["lat"]
                   .._lng = res["lng"]
                   .._photoAGCSPath = res["_photoAGCSPath"]
-                  .._radius = res["radius"]
+                  // .._radius = res["radius"]
                   .._wage = res["wage"]
                   .._place = res["place"]
                   .._userID = res["userID"]);
@@ -1526,7 +1545,7 @@ class _ProfilePageState extends State<ProfilePage>
                   .._lat = res["lat"]
                   .._lng = res["lng"]
                   .._photoAGCSPath = res["_photoAGCSPath"]
-                  .._radius = res["radius"]
+                  // .._radius = res["radius"]
                   .._wage = res["wage"]
                   .._place = res["place"]
                   .._userID = res["userID"]);
@@ -1701,6 +1720,9 @@ class _ProfilePageState extends State<ProfilePage>
   void _onWorkerButtonPress() {
     setState(() {
       _bBossMode = false;
+      if (_bJobMenu && !_bWorkerDetailsAreFull) {
+        _bJobMenu = false;
+      }
       _tabIndicationPainterNoPageControllerListener.iPos = 0;
       _switchAnimController.forward();
     });
@@ -1713,6 +1735,10 @@ class _ProfilePageState extends State<ProfilePage>
   void _onBossButtonPress() {
     setState(() {
       _bBossMode = true;
+      
+      if (_bJobMenu && !_bBossDetailsAreFull) {
+        _bJobMenu = false;
+      }
       _switchAnimController.reverse();
     });
     _tabIndicationPainterNoPageControllerListener.iPos = 1;
@@ -1789,17 +1815,18 @@ class _ProfilePageState extends State<ProfilePage>
                 height: 1.0,
                 color: Colors.grey[400],
               ),
-              createTextField("מרחק", myFocusNodeRadius,
-                  _controllerWorkerRadius, FontAwesomeIcons.route,
-                  keyboardType: TextInputType.number),
-              Container(
-                width: 250.0,
-                height: 1.0,
-                color: Colors.grey[400],
-              ),
+              // createTextField("מרחק", myFocusNodeRadius,
+              //     _controllerWorkerRadius, FontAwesomeIcons.route,
+              //     keyboardType: TextInputType.number),
+              // Container(
+              //   width: 250.0,
+              //   height: 1.0,
+              //   color: Colors.grey[400],
+              // ),
               createTextField("שכר", myFocusNodeWage, _controllerWorkerWage,
                   FontAwesomeIcons.shekelSign,
-                  keyboardType: TextInputType.number),
+                  keyboardType: TextInputType.number,
+                  direction: TextDirection.ltr),
               Container(
                 width: 250.0,
                 height: 1.0,
@@ -2057,9 +2084,11 @@ class _ProfilePageState extends State<ProfilePage>
         iconSize: 30.0,
         isExpanded: true,
         items: _lOccupationDropDown,
-        hint: createTextWithIcon(job.details._lOccupationFieldListString.length > 0
-            ? job.details._lOccupationFieldListString[0]
-            : _jobPlaceText, FontAwesomeIcons.hammer),
+        hint: createTextWithIcon(
+            job.details._lOccupationFieldListString.length > 0
+                ? job.details._lOccupationFieldListString[0]
+                : _jobPlaceText,
+            FontAwesomeIcons.hammer),
         style: TextStyle(
             fontFamily: "WorkSansSemiBold",
             fontSize: 16.0,
@@ -2070,7 +2099,6 @@ class _ProfilePageState extends State<ProfilePage>
           _idJobIsUpdated = job.details._jobId;
           setState(() {
             _jobPlaceText = s;
-            _bExpandOccupation = false;
           });
         }));
     _lKeyForJobDiscription[index] =
@@ -2186,7 +2214,8 @@ class _ProfilePageState extends State<ProfilePage>
                                                 job.ui.conWage,
                                                 FontAwesomeIcons.shekelSign,
                                                 keyboardType:
-                                                    TextInputType.number),
+                                                    TextInputType.number,
+                                                direction: TextDirection.ltr),
                                             new SingleChildScrollView(
                                               child: new Theme(
                                                 data: new ThemeData(
@@ -2481,9 +2510,8 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildJobsAsWorkerPanel() {
-    if (_jobDetailsForWorkerList == null)
-    {
-       return new Container(child: createTitle("אין עבודות"));
+    if (_jobDetailsForWorkerList == null) {
+      return new Container(child: createTitle("אין עבודות"));
     }
     List<JobDetailsForWorker> jobsToShowTemp =
         new List.from(_jobDetailsForWorkerList);

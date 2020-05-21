@@ -13,11 +13,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:device_info/device_info.dart';
 import 'package:zariz_app/style/theme.dart' as ZarizTheme;
 
-Widget createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData, {keyboardType=TextInputType.text, maxLines = 1, validator=null, textSize=16.0, bCenter =false, onTapFunction=null, enableEdit=true}) {
+Widget createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData, {direction=null, keyboardType=TextInputType.text, maxLines = 1, validator=null, textSize=16.0, bCenter =false, onTapFunction=null, enableEdit=true}) {
     return new Padding(
       padding: bCenter? EdgeInsets.only(top:10.0, bottom:10.0) :
         EdgeInsets.only(top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
       child: TextField(
+        textDirection: direction,
         enabled: enableEdit,
         focusNode: focusNode,
         controller: controller,

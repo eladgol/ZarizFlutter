@@ -530,6 +530,8 @@ class _LoginPageState extends State<LoginPage>
                           padding: EdgeInsets.only(
                               top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
                           child: TextField(
+                            textDirection: TextDirection.ltr,
+                            inputFormatters: [ WhitelistingTextInputFormatter(RegExp("[0-9 a-z A-Z !@#\$%^&* ]"))], // acording to IBM - https://www.ibm.com/support/pages/password-policy-and-passwords-special-characters
                             focusNode: myFocusNodePasswordLogin,
                             controller: loginPasswordController,
                             obscureText: _obscureTextLogin,
@@ -829,6 +831,7 @@ class _LoginPageState extends State<LoginPage>
                           padding: EdgeInsets.only(
                               top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
                           child: TextField(
+                            textDirection: TextDirection.ltr,
                             focusNode: myFocusNodeEmail,
                             controller: signupEmailController,
                             keyboardType: TextInputType.emailAddress,
@@ -858,6 +861,8 @@ class _LoginPageState extends State<LoginPage>
                           padding: EdgeInsets.only(
                               top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
                           child: TextField(
+                            textDirection: TextDirection.ltr,
+                            inputFormatters: [ WhitelistingTextInputFormatter(RegExp("[0-9 a-z A-Z !@#\$%^&* ]"))], // acording to IBM - https://www.ibm.com/support/pages/password-policy-and-passwords-special-characters
                             focusNode: myFocusNodePassword,
                             controller: signupPasswordController,
                             obscureText: _obscureTextSignup,
@@ -895,6 +900,8 @@ class _LoginPageState extends State<LoginPage>
                           padding: EdgeInsets.only(
                               top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
                           child: TextField(
+                            textDirection: TextDirection.ltr,
+                            inputFormatters: [ WhitelistingTextInputFormatter(RegExp("[0-9 a-z A-Z !@#\$%^&* ]"))], // acording to IBM - https://www.ibm.com/support/pages/password-policy-and-passwords-special-characters
                             controller: signupConfirmPasswordController,
                             obscureText: _obscureTextSignupConfirm,
                             style: TextStyle(
