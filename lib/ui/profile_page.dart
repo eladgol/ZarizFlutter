@@ -263,12 +263,13 @@ class ProfilePage extends StatefulWidget {
   _ProfilePageState createState() => new _ProfilePageState();
 }
 
-//enum SortType {LastName, FirstName, DistFromLocation, DistFromAddress}
+enum SortType {DistFromLocation, DistFromAddress, Wage, LastName, FirstName}
 final List<String> _sSortTypes = [
+  'מיין לפי מרחק ממיקום נוכחי',
+  'מיין לפי מרחק מכתובת העסק',
+  'מיין לפי שכר',
   'מיין לפי שם משפחה',
   'מיין לפי שם פרטי',
-  'מיין לפי מרחק ממיקום נוכחי',
-  'מיין לפי מרחק מכתובת העסק'
 ];
 
 class _ProfilePageState extends State<ProfilePage>
@@ -2525,7 +2526,7 @@ class _ProfilePageState extends State<ProfilePage>
         }
       } catch (e) {}
     });
-    if (_sortTypeJobsForWorker == 0) {
+    if (_sortTypeJobsForWorker == SortType.LastName.index) {
       //SortType.LastName.index) {
       jobsToShow.sort((a, b) {
         return (_bSortAsscendingJobsForWorker ? a : b)
@@ -2539,7 +2540,7 @@ class _ProfilePageState extends State<ProfilePage>
                 .toString()
                 .toLowerCase());
       });
-    } else if (_sortTypeJobsForWorker == 1) {
+    } else if (_sortTypeJobsForWorker == SortType.FirstName.index) {
       //SortType.FirstName.index) {
       jobsToShow.sort((a, b) {
         return (_bSortAsscendingJobsForWorker ? a : b)
@@ -2553,16 +2554,18 @@ class _ProfilePageState extends State<ProfilePage>
                 .toString()
                 .toLowerCase());
       });
-    } else if (_sortTypeJobsForWorker == 2) {
+    } else if (_sortTypeJobsForWorker == SortType.DistFromAddress.index) {
       //SortType.DistFromAddress.index) {
       jobsToShow.sort((a, b) {
         final Distance distance = new Distance();
-        final double meter = distance(
-            new LatLng(a.jd._lat, a.jd._lng), new LatLng(b.jd._lat, b.jd._lng));
-        int iMeter = (meter > 0) ? 1 : -1;
-        return _bSortAsscendingJobsForWorker ? iMeter : iMeter * -1;
+        final double meterA = distance(new LatLng(a.jd._lat, a.jd._lng),
+            new LatLng(_workerDetails._lat, _workerDetails._lng));
+        final double meterB = distance(new LatLng(b.jd._lat, b.jd._lng),
+            new LatLng(_workerDetails._lat, _workerDetails._lng));
+        final int dist = meterA > meterB ? 1 : -1;
+        return (_bSortAsscendingJobsForWorker ? dist : (dist * -1));
       });
-    } else if (_sortTypeJobsForWorker == 3) {
+    } else if (_sortTypeJobsForWorker == SortType.DistFromLocation.index) {
       //SortType.DistFromLocation.index) {
       jobsToShow.sort((a, b) {
         final Distance distance = new Distance();
@@ -2572,6 +2575,14 @@ class _ProfilePageState extends State<ProfilePage>
             new LatLng(_currLocation.lat, _currLocation.lng));
         final int dist = meterA > meterB ? 1 : -1;
         return (_bSortAsscendingJobsForWorker ? dist : (dist * -1));
+      });
+    } else if (_sortTypeWorkersForJob == SortType.Wage.index) {
+      //SortType.DistFromLocation.index) {
+      jobsToShow.sort((a, b) {
+        return (_bSortAsscendingJobsForWorker ? a : b)
+            .jd._wage
+            .compareTo((_bSortAsscendingJobsForWorker ? b : a)
+                .jd._wage);
       });
     }
     var w = MediaQuery.of(context).size.width;
@@ -2806,7 +2817,7 @@ class _ProfilePageState extends State<ProfilePage>
         lWorkersToShow.remove(oldVal);
       } catch (e) {}
     });
-    if (_sortTypeWorkersForJob == 0) {
+    if (_sortTypeWorkersForJob == SortType.LastName.index) {
       //SortType.LastName.index) {
       lWorkersToShow.sort((a, b) {
         return (_bSortAsscendingWorkersForJob ? a : b)
@@ -2818,7 +2829,7 @@ class _ProfilePageState extends State<ProfilePage>
                 .toString()
                 .toLowerCase());
       });
-    } else if (_sortTypeWorkersForJob == 1) {
+    } else if (_sortTypeWorkersForJob == SortType.FirstName.index) {
       //SortType.FirstName.index) {
       lWorkersToShow.sort((a, b) {
         return (_bSortAsscendingWorkersForJob ? a : b)
@@ -2830,16 +2841,18 @@ class _ProfilePageState extends State<ProfilePage>
                 .toString()
                 .toLowerCase());
       });
-    } else if (_sortTypeWorkersForJob == 2) {
+    } else if (_sortTypeWorkersForJob == SortType.DistFromAddress.index) {
       //SortType.DistFromAddress.index) {
       lWorkersToShow.sort((a, b) {
         final Distance distance = new Distance();
-        final double meter =
-            distance(new LatLng(a._lat, a._lng), new LatLng(b._lat, b._lng));
-        int iMeter = (meter > 0) ? 1 : -1;
-        return _bSortAsscendingWorkersForJob ? iMeter : iMeter * -1;
+        final double meterA = distance(new LatLng(a._lat, a._lng),
+            new LatLng(_bossDetails._lat, _bossDetails._lng));
+        final double meterB = distance(new LatLng(b._lat, b._lng),
+            new LatLng(_bossDetails._lat, _bossDetails._lng));
+        final int dist = meterA > meterB ? 1 : -1;
+        return (_bSortAsscendingWorkersForJob ? dist : (dist * -1));
       });
-    } else if (_sortTypeWorkersForJob == 3) {
+    } else if (_sortTypeWorkersForJob == SortType.DistFromLocation.index) {
       //SortType.DistFromLocation.index) {
       lWorkersToShow.sort((a, b) {
         final Distance distance = new Distance();
@@ -2849,6 +2862,14 @@ class _ProfilePageState extends State<ProfilePage>
             new LatLng(_currLocation.lat, _currLocation.lng));
         final int dist = meterA > meterB ? 1 : -1;
         return (_bSortAsscendingWorkersForJob ? dist : (dist * -1));
+      });
+    } else if (_sortTypeWorkersForJob == SortType.Wage.index) {
+      //SortType.DistFromLocation.index) {
+      lWorkersToShow.sort((a, b) {
+        return (_bSortAsscendingWorkersForJob ? a : b)
+            ._wage
+            .compareTo((_bSortAsscendingWorkersForJob ? b : a)
+                ._wage);
       });
     }
 
