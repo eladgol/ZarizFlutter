@@ -906,8 +906,8 @@ class _ProfilePageState extends State<ProfilePage>
       var c = location.getLocation();
       c.then((l) {
         print(l.toString());
-        var lat = l["latitude"];
-        var lng = l["longitude"];
+        var lat = l.latitude;
+        var lng = l.longitude;
         var loc = new Location(lat, lng);
         var res =
             _placesAPI.searchNearbyWithRadius(loc, 1000.0, language: "iw");
@@ -1839,16 +1839,7 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildWorkerDetails2(BuildContext context) {
-    return new Directionality(
-        textDirection: TextDirection.rtl,
-        child: new AnimatedContainer(
-            duration: new Duration(milliseconds: 500),
-            decoration: decorationBossWorker(context, false),
-            //padding: EdgeInsets.only(top: 23.0),
-            child: new SingleChildScrollView(
-                scrollDirection: Axis.vertical, child: createMultiGridView())));
-  }
+
 
   Iterable<Widget> get occupationWidget sync* {
     final Color uncheckedColor =
@@ -1964,20 +1955,6 @@ class _ProfilePageState extends State<ProfilePage>
   Size getSize(GlobalKey key) {
     final RenderBox renderBoxRed = key.currentContext.findRenderObject();
     return (renderBoxRed.size);
-  }
-
-  Widget _buildWorkerCarousel(BuildContext context) {
-    var c = new CarosuelState(pages: <Widget>[
-      new ConstrainedBox(
-        constraints: const BoxConstraints.expand(),
-        child: _buildWorkerDetails2(context),
-      ),
-      new ConstrainedBox(
-        constraints: const BoxConstraints.expand(),
-        child: _buildWorkerDetails1(context),
-      ),
-    ]);
-    return c.buildCarousel(context, _heightMain);
   }
 
   Widget addJobWidget(bool bIsEmpty) {

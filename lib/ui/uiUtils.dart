@@ -9,7 +9,6 @@ import 'package:zariz_app/utils/bubble_indication_painter.dart';
 import 'package:zariz_app/utils/Services.dart';
 import 'package:zariz_app/ui/profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:device_info/device_info.dart';
 import 'package:zariz_app/style/theme.dart' as ZarizTheme;
 
