@@ -79,7 +79,7 @@ Widget createTitle(String sTitle, {IconData icon, textSize=16.0, bCenter =false,
       )
     );
 }
-Widget createTitleNoPadding(String sTitle, {IconData icon, textSize=16.0, bCenter =false, bLeft = false, GlobalKey key})
+Widget createTitleNoPadding(String sTitle, {IconData icon, textSize=16.0, bCenter =false, bLeft = false, GlobalKey key, color = Colors.black})
 {
   return new Padding(
       padding: bCenter? EdgeInsets.only(top:0.0, bottom:0.0) :
@@ -89,7 +89,7 @@ Widget createTitleNoPadding(String sTitle, {IconData icon, textSize=16.0, bCente
         style: TextStyle(
           fontFamily: "WorkSansSemiBold",
           fontSize: textSize,
-          color: Colors.black),
+          color: color),
         textAlign: bCenter?TextAlign.center:bLeft?TextAlign.end:TextAlign.start,
         textDirection: TextDirection.rtl,
       )

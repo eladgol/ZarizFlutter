@@ -26,6 +26,7 @@ import 'package:zariz_app/ui/Job_confirmDialog.dart';
 import 'package:zariz_app/ui/Job_confirmHireDialog.dart';
 import 'package:zariz_app/ui/Job_confirmFiredDialog.dart';
 import 'package:zariz_app/ui/Job_confirmResignDialog.dart';
+import 'package:zariz_app/ui/mapWidget.dart';
 import 'package:latlong/latlong.dart';
 
 import 'dart:math';
@@ -45,7 +46,15 @@ class BossDetails {
   String _photoAGCSPath;
   String _place;
   int _userID;
-
+  String get buisnessName {
+    return _buisnessName;
+  }
+  String get firstName {
+    return _firstName;
+  }
+  String get lastName {
+    return _lastName;
+  }
   Map<String, String> toJSON() => {
         'firstName': _firstName,
         'lastName': _lastName,
@@ -121,7 +130,24 @@ class JobsDetails {
   List<String> _lOccupationFieldListString = [];
   String _place;
   double _wage;
-
+  String get discription {
+    return _discription;
+  }
+  String get jobId {
+    return _jobId;
+  }
+  double get lat {
+    return _lat;
+  }
+  double get lng {
+    return _lng;
+  }
+  double get wage {
+    return _wage;
+  }
+  String get place {
+    return _place;
+  }
   Map<String, String> toJSON() => {
         'discription': _discription,
         'wage': _wage.toString(),
@@ -323,6 +349,7 @@ class _ProfilePageState extends State<ProfilePage>
 
   bool _bIsLoadingPlaces = false;
   bool _bJobMenu = false;
+  bool _bMapView = false;
   BossDetails _bossDetails = new BossDetails();
   bool _bShrinkJobMenu = false;
   bool _bUpdatingDetails = false;
@@ -2487,6 +2514,149 @@ class _ProfilePageState extends State<ProfilePage>
     ]);
   }
 
+  Widget createSortLine(Widget sortText, VoidCallback sortTextCallback,  VoidCallback sortArrowCallback, bool bArrowUp, double w, double h)
+  {
+    return new Align(
+                                  alignment: Alignment.center,
+                                  child: Container(
+                                      //width: (l[0].left - l[0].right)*2,
+                                      width: w ,
+                                      height: h,
+                                      child: new Card(
+                                          elevation: 6.0,
+                                          color: ZarizTheme.Colors.zarizGradientEnd2,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(500.0),
+
+                                          ),
+                                          child: new Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceBetween,
+                                              textDirection: TextDirection.rtl,
+                                              children: <Widget>[
+                                                new Flexible(
+                                                    child: Container(
+                                      //width: (l[0].left - l[0].right)*2,
+                                      width: w ,
+                                      height: h,
+                                      child: new InkWell(
+                                                        child: Align(
+                                                            alignment: Alignment.center,
+                                                            child: sortText),
+                                                        onTap: sortTextCallback,
+                                                        ))),
+                                                new Flexible(
+                                                  child: Container(
+                                      width: w * 0.1 ,
+                                      height: h,
+                                                    child: IconButton(
+                                                  icon: Icon(
+                                                     
+                                                      bArrowUp
+                                                          ? FontAwesomeIcons
+                                                              .arrowUp
+                                                          : FontAwesomeIcons
+                                                              .arrowDown,
+                                                      size: 12.0),
+                                                       color: ZarizTheme.Colors.zarizGradientStart2,
+                                                  onPressed: sortArrowCallback,
+                                                ))),
+                                                
+                                              ]))));
+  }
+   void sortWorkersForJobTextCallback() {
+    setState(() {
+      _sortTypeWorkersForJob++;
+      _sortTypeWorkersForJob =
+          _sortTypeWorkersForJob %
+              _sSortTypes
+                  .length;
+    });
+  }
+  void sortWorkersForJobArrowCallback() {
+    setState(() {
+      _bSortAsscendingWorkersForJob =
+          !_bSortAsscendingWorkersForJob;
+    });
+  }
+                
+  void sortJobsForWorkerTextCallback() {
+    setState(() {
+      _sortTypeJobsForWorker++;
+      _sortTypeJobsForWorker =
+          _sortTypeJobsForWorker %
+              _sSortTypes
+                  .length;
+    });
+  }
+  void sortJobsForWorkerArrowCallback() {
+    setState(() {
+      _bSortAsscendingJobsForWorker =
+          !_bSortAsscendingJobsForWorker;
+    });
+  }
+
+  Widget buildJobsAsWorkerList(List<JobDetailsForWorker> jobsToShow, Widget sortText) 
+  {
+    var w = MediaQuery.of(context).size.width;
+    var h = MediaQuery.of(context).size.height;
+    return new Column(children: <Widget>[
+                                 createSortLine(sortText, sortJobsForWorkerTextCallback, sortJobsForWorkerArrowCallback, _bSortAsscendingJobsForWorker, w * 0.8, h / 24),
+                                              
+                              
+                              for (var item in jobsToShow)
+                                !item.ui.bIsExpanded
+                                    ? AnimatedContainer(
+                                        duration:
+                                            new Duration(milliseconds: 500),
+                                        decoration:
+                                            decorationBossWorker(context, true),
+                                        padding: EdgeInsets.only(top: 5.0),
+                                        child:
+                                            _buildTileHeaderJobsAsWorkerPanel(
+                                                item))
+                                    : AnimatedContainer(
+                                        duration:
+                                            new Duration(milliseconds: 500),
+                                        decoration:
+                                            decorationBossWorker(context, true),
+                                        padding: EdgeInsets.only(top: 5.0),
+                                        child: new Column(children: <Widget>[
+                                          _buildTileHeaderJobsAsWorkerPanel(
+                                              item),
+                                          ListTile(
+                                              title: createTitle(
+                                                  "שם העסק ${item.bd._buisnessName} \nשם המעסיק ${item.bd._firstName} ${item.bd._lastName}\nשכר ${item.jd._wage}\nמיקום ${item.jd._place}\n"),
+                                              // subtitle: Text(
+                                              //     'To delete this Panel, tap the trash can icon'),
+                                              //trailing: IconButton(icon: Icon(Icons.delete), onPressed: (){
+
+                                              //},),
+                                              onTap: () {
+                                                setState(() {
+                                                  item.ui.bIsExpanded =
+                                                      !item.ui.bIsExpanded;
+                                                });
+                                              })
+                                        ]))]);
+  }
+  String _expandOnlyJobId = "";
+  void onTapInfoWorker(String jobId) {
+    setState(() {
+      for (var j in _jobDetailsForWorkerList) {
+        if (j.jd.jobId == jobId) {
+           j.ui.bIsExpanded = true;
+        } else {
+          j.ui.bIsExpanded = false;
+        }
+       
+      }
+      _bMapView = false;
+    });
+    
+
+  }                                        
   Widget _buildJobsAsWorkerPanel() {
     if (_jobDetailsForWorkerList == null) {
       return new Container(child: createTitle("אין עבודות"));
@@ -2566,7 +2736,7 @@ class _ProfilePageState extends State<ProfilePage>
     var h = MediaQuery.of(context).size.height;
 
     Widget sortText = createTitleNoPadding(_sSortTypes[_sortTypeJobsForWorker],
-        textSize: 10.0, bLeft: true);
+        textSize: 10.0, bCenter: true, color:  ZarizTheme.Colors.zarizGradientStart2);
 
     return (jobsToShow == null || jobsToShow.length == 0)
         ? Container(child: createTitle("אין עבודות"))
@@ -2583,94 +2753,43 @@ class _ProfilePageState extends State<ProfilePage>
                             decoration: decorationBossWorker(context, true),
                             padding: EdgeInsets.only(top: 5.0),
                             child: new Column(children: <Widget>[
-                              Align(
-                                  alignment: Alignment.centerLeft,
+                                 _bMapView ? Container(height: h * 0.6, width: w, child: buildMapWidgetJobsForWorker(jobsToShow, _workerDetails,_currLocation, onTapInfoWorker)) : buildJobsAsWorkerList(jobsToShow, sortText),
+                                        Align(
+                                  alignment: Alignment.center,
                                   child: Container(
-
-                                      //width: (l[0].left - l[0].right)*2,
-                                      width: w / 2,
+                                    
                                       height: h / 15,
-                                      child: new Card(
-                                          elevation: 6.0,
-                                          color: Colors.white54,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(4.0),
-                                          ),
-                                          child: new Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.end,
-                                              textDirection: TextDirection.rtl,
-                                              children: <Widget>[
-                                                new Flexible(
-                                                    child: new GestureDetector(
-                                                        child: Padding(
-                                                            padding:
-                                                                EdgeInsets.only(
-                                                                    right: 2.0),
-                                                            child: sortText),
-                                                        onTap: () {
-                                                          setState(() {
-                                                            _sortTypeJobsForWorker++;
-                                                            _sortTypeJobsForWorker =
-                                                                _sortTypeJobsForWorker %
-                                                                    _sSortTypes
-                                                                        .length;
-                                                          });
-                                                        })),
-                                                new Flexible(
-                                                    child: IconButton(
-                                                  icon: Icon(
-                                                      _bSortAsscendingJobsForWorker
-                                                          ? FontAwesomeIcons
-                                                              .arrowUp
-                                                          : FontAwesomeIcons
-                                                              .arrowDown,
-                                                      size: 12.0),
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      _bSortAsscendingJobsForWorker =
-                                                          !_bSortAsscendingJobsForWorker;
-                                                    });
-                                                  },
-                                                )),
-                                              ])))),
-                              for (var item in jobsToShow)
-                                item.ui.bIsExpanded
-                                    ? AnimatedContainer(
-                                        duration:
-                                            new Duration(milliseconds: 500),
-                                        decoration:
-                                            decorationBossWorker(context, true),
-                                        padding: EdgeInsets.only(top: 5.0),
-                                        child:
-                                            _buildTileHeaderJobsAsWorkerPanel(
-                                                item))
-                                    : AnimatedContainer(
-                                        duration:
-                                            new Duration(milliseconds: 500),
-                                        decoration:
-                                            decorationBossWorker(context, true),
-                                        padding: EdgeInsets.only(top: 5.0),
-                                        child: new Column(children: <Widget>[
-                                          _buildTileHeaderJobsAsWorkerPanel(
-                                              item),
-                                          ListTile(
-                                              title: createTitle(
-                                                  "שם העסק ${item.bd._buisnessName} \nשם המעסיק ${item.bd._firstName} ${item.bd._lastName}\nשכר ${item.jd._wage}\nמיקום ${item.jd._place}\n"),
-                                              // subtitle: Text(
-                                              //     'To delete this Panel, tap the trash can icon'),
-                                              //trailing: IconButton(icon: Icon(Icons.delete), onPressed: (){
-
-                                              //},),
-                                              onTap: () {
-                                                setState(() {
-                                                  item.ui.bIsExpanded =
-                                                      !item.ui.bIsExpanded;
-                                                });
-                                              })
-                                        ]))
-                            ]))))));
+                                      // child: new Card(
+                                      //     elevation: 6.0,
+                                      //     color: Colors.white54,
+                                      //     shape: RoundedRectangleBorder(
+                                      //       borderRadius:
+                                      //           BorderRadius.circular(4.0),
+                                      //     ),
+                                          child: RawMaterialButton(
+                                                fillColor: Colors.blue[300],
+                                                splashColor: Colors.white,
+                                                child: new Container(
+                                                  decoration: new BoxDecoration(
+                                                    shape: BoxShape
+                                                        .circle, // You can use like this way or like the below line
+                                                    //borderRadius: new BorderRadius.circular(30.0),
+                                                    color: Colors.blue[300],
+                                                  ),
+                                                  child: new Icon(
+                                                      _bMapView ?
+                                                          FontAwesomeIcons.list : FontAwesomeIcons.mapMarked,
+                                                        size: 32.0,
+                                                       ),
+                                                ),
+                                                onPressed: ((){setState(() {
+                                                      _bMapView = !_bMapView;
+                                                    });}),
+                                                shape: new CircleBorder(),
+                                                
+                                              ))),
+                            ])))))
+                          );
   }
 
   Widget _buildBossJobsCarousel(BuildContext context) {
@@ -2854,56 +2973,12 @@ class _ProfilePageState extends State<ProfilePage>
     var h = MediaQuery.of(context).size.height;
 
     Widget sortText = createTitleNoPadding(_sSortTypes[_sortTypeWorkersForJob],
-        textSize: 10.0, bLeft: true);
+        textSize: 10.0, bCenter: true, color:  ZarizTheme.Colors.zarizGradientStart2);
 
     return new Directionality(
       textDirection: TextDirection.rtl,
       child: new Column(children: <Widget>[
-        Align(
-            alignment: Alignment.centerLeft,
-            child: Container(
-
-                //width: (l[0].left - l[0].right)*2,
-                width: w / 2,
-                height: h / 15,
-                child: new Card(
-                    elevation: 6.0,
-                    color: Colors.white54,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4.0),
-                    ),
-                    child: new Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        textDirection: TextDirection.rtl,
-                        children: <Widget>[
-                          new Flexible(
-                              child: new GestureDetector(
-                                  child: Padding(
-                                      padding: EdgeInsets.only(right: 2.0),
-                                      child: sortText),
-                                  onTap: () {
-                                    setState(() {
-                                      _sortTypeWorkersForJob++;
-                                      _sortTypeWorkersForJob =
-                                          _sortTypeWorkersForJob %
-                                              _sSortTypes.length;
-                                    });
-                                  })),
-                          new Flexible(
-                              child: IconButton(
-                            icon: Icon(
-                                _bSortAsscendingWorkersForJob
-                                    ? FontAwesomeIcons.arrowUp
-                                    : FontAwesomeIcons.arrowDown,
-                                size: 12.0),
-                            onPressed: () {
-                              setState(() {
-                                _bSortAsscendingWorkersForJob =
-                                    !_bSortAsscendingWorkersForJob;
-                              });
-                            },
-                          )),
-                        ])))),
+        createSortLine(sortText, sortWorkersForJobTextCallback, sortWorkersForJobArrowCallback, _bSortAsscendingWorkersForJob, w * 0.8, h / 24),
         SingleChildScrollView(
             child: new ListView.builder(
                 shrinkWrap: true,
