@@ -18,10 +18,10 @@ Widget buildMapWidgetJobsForWorker(List<JobDetailsForWorker> lJobs, WorkerDetail
   Completer<GoogleMapController> _controller = Completer();
   CameraPosition _kCurLocation = CameraPosition(
     target: LatLng(currentLocation.lat, currentLocation.lng),
-    zoom: 14.4746,
+    zoom: 9,
   );
   return new GoogleMap(
-        mapType: MapType.hybrid,
+        mapType: MapType.normal,
         markers: markers,
         initialCameraPosition: _kCurLocation,
         onMapCreated: (GoogleMapController controller) {

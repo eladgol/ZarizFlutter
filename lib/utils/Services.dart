@@ -420,22 +420,35 @@ Future<String> saveImage( List<int> imageBytes, String ext) async {
       await File(sFileName).delete();
     }
   } catch (e) {
+    print("saveImage, exception 1, ${e.toString()}");
   }
   try {
     await new File(sFileName).writeAsBytes(imageBytes);
     Singleton().persistentState.setString("profilePic", sFileName);
   } catch (e) {
+    print("saveImage, exception 2, ${e.toString()})");
   }
   
   
   return sFileName;
 }   
  Future<File> getImageFromNetwork(String url) async {
-     var response = await http.get(url);
+   try
+   {
+     var response = await http.get(url).timeout(Duration(seconds: 10), onTimeout:() { 
+      print("getImageFromNetwork, waited timeout but no reply");
+      return null;
+     });
      var sFileName = Singleton().persistentState.getString("profilePic");
      if (await File(sFileName).exists()) {
       await File(sFileName).delete();
      }
      var file = await new File(sFileName).writeAsBytes(response.bodyBytes);
+     print("getImageFromNetwork, success");
      return file;
+   } catch (e) {
+     print("getImageFromNetwork, exception, ${e.toString()}");
+     return null;
+   }
+    
   }

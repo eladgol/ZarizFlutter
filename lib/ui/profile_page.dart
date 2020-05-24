@@ -1016,12 +1016,13 @@ class _ProfilePageState extends State<ProfilePage>
 
           _workerDetails._photoAGCSPath = _imageFileBase64Data;
           _services.updateInputForm(_workerDetails.toJSON()).then((res) {
-            _bWorkerDetailsAreFull = res["detailsFull"];
+            
             if (res.containsKey("success") &&
                 ((res["success"] == "true") || (res["success"] == true))) {
               setState(() {
                 _bWorkerIsUpdated = true;
                 _bUpdatingDetails = false;
+                _bWorkerDetailsAreFull = res["detailsFull"];
               });
             }
           });
@@ -1200,7 +1201,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void imagePick(ImageSource _source) {
-    ImagePicker.pickImage(source: _source).then((img) {
+    ImagePicker.pickImage(source: _source, maxHeight: 240, maxWidth:352).then((img) {
       var res = getResolution(Image.file(img));
       res.then((info) {
         Image image = getAdjustedImageFromFile(img, info);
@@ -2723,7 +2724,7 @@ class _ProfilePageState extends State<ProfilePage>
         final int dist = meterA > meterB ? 1 : -1;
         return (_bSortAsscendingJobsForWorker ? dist : (dist * -1));
       });
-    } else if (_sortTypeWorkersForJob == SortType.Wage.index) {
+      } else if (_sortTypeJobsForWorker == SortType.Wage.index) {
       //SortType.DistFromLocation.index) {
       jobsToShow.sort((a, b) {
         return (_bSortAsscendingJobsForWorker ? a : b)
