@@ -2,15 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'dart:core';
-import 'dart:async';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:zariz_app/style/theme.dart' as Theme;
-import 'package:zariz_app/utils/bubble_indication_painter.dart';
-import 'package:zariz_app/utils/Services.dart';
-import 'package:zariz_app/ui/profile_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:device_info/device_info.dart';
-import 'package:zariz_app/style/theme.dart' as ZarizTheme;
 
 Widget createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData, {direction=null, keyboardType=TextInputType.text, maxLines = 1, validator=null, textSize=16.0, bCenter =false, onTapFunction=null, enableEdit=true}) {
     return new Padding(

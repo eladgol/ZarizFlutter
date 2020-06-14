@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
-import 'package:utf/utf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -771,8 +770,7 @@ class _ProfilePageState extends State<ProfilePage>
       setState(() {
         _homeScreenText = "Push Messaging token: $token";
         _firebase_token = token;
-        _services.registerDevice(
-            _androidInfo.model, 'Android', _androidInfo.id, token);
+        _services.registerDevice(_androidInfo.model, 'Android', _androidInfo.id, token);
       });
       print(_homeScreenText);
     });

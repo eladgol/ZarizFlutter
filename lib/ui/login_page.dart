@@ -8,7 +8,8 @@ import 'package:zariz_app/utils/bubble_indication_painter.dart';
 import 'package:zariz_app/utils/Services.dart';
 import 'package:zariz_app/ui/profile_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:flutter_facebook_login/flutter_facebook_login.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 //import 'package:google_sign_in/google_sign_in.dart';
 // import 'package:google_sign_in/google_sign_in.dart';
@@ -382,7 +383,7 @@ class _LoginPageState extends State<LoginPage>
     _pageController?.dispose();
     super.dispose();
   }
-
+  GoogleSignInAccount _googleAccount;
   @override
   void initState() {
     super.initState();
@@ -404,11 +405,39 @@ class _LoginPageState extends State<LoginPage>
         //onLoginPressed(loginEmailController.text, loginPasswordController.text);
       });
     });
-
+    _googleSignIn.onCurrentUserChanged.listen((GoogleSignInAccount account) {
+      setState(() {
+        _googleAccount = account;
+      });
+      String email = account.email;
+      String id = account.id;
+        
+      account.authentication.then((value) { 
+        var serverAuthCode= value.serverAuthCode;
+        var accessToken = value.accessToken;
+        var idToken = value.idToken;
+         showInSnackBar("Google, logged in for $email");
+         print("Google, logged in for $email");
+      
+        _services.authenticateGoogle({"token" : idToken, "id" : id}).then((res) {
+            handleLoginResult(res, res["email"]);
+          });
+          onLoginStatusChanged(true);
+        });
+      
+    });
+    _googleSignIn.signInSilently();
     //IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
     //print('Running on ${iosInfo.utsname.machine}');  // e.g. "iPod7,1
   }
 
+  Future<void> _handleGetGoogleDetails() async {
+    setState(() {
+      
+    });
+
+  
+  }
   void showInSnackBar(String value) {
     FocusScope.of(context).requestFocus(new FocusNode());
     _scaffoldKey.currentState?.removeCurrentSnackBar();
@@ -619,7 +648,15 @@ class _LoginPageState extends State<LoginPage>
             Padding(
               padding: EdgeInsets.only(top: 10.0),
               child: FlatButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    String email = loginPasswordController.text;
+                    bool bEmailValid = RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(email);
+                    if (bEmailValid) {
+                      _services.sendEmail(email).then((d) {});
+                    } else {
+                      showInSnackBar("כתובת דואר אלקטרוני לא תיקנית");
+                    }
+                    },
                   child: Text(
                     "שכחת סיסמא?",
                     style: TextStyle(
@@ -684,7 +721,10 @@ class _LoginPageState extends State<LoginPage>
                 Padding(
                   padding: EdgeInsets.only(top: 10.0, left: 10.0),
                   child: GestureDetector(
-                    onTap: () => showInSnackBar("Facebook button pressed"),
+                    onTap: () {
+                      showInSnackBar("Facebook button pressed");
+                      initiateFacebookLogin();
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(15.0),
                       decoration: new BoxDecoration(
@@ -702,7 +742,8 @@ class _LoginPageState extends State<LoginPage>
                   padding: EdgeInsets.only(top: 10.0, right: 10.0),
                   child: GestureDetector(
                     onTap: (() {
-                      setState(() {});
+                      showInSnackBar("Google button pressed");
+                      initiateGoogleLogin();
                     }),
                     child: Container(
                       padding: const EdgeInsets.all(15.0),
@@ -726,27 +767,11 @@ class _LoginPageState extends State<LoginPage>
   }
 
   void onLoginPressed(email, password) {
-    setState(() {
-      _bLoginEnabled = false;
-      _progressBarActive = true;
-    });
+    preLogin();
     var resFuture = _services.performLogin(email, password);
     resFuture.then((res) {
-      if ((res["success"] == "true") || (res["success"] == true)) {
-        showInSnackBar(email + " שלום");
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ProfilePage()),
-        );
-      } else if (res["error"].contains("Authent")) {
-        showInSnackBar("שם משתמש או סיסמא אינם רשומים במערכת");
-      } else {
-        showInSnackBar("הקשר לשרת נכשל, אנא נסה שוב מאוחר יותר");
-      }
-      setState(() {
-        _bLoginEnabled = true;
-        _progressBarActive = false;
-      });
+      handleLoginResult(res, email);
+      postLogin();
     });
   }
 
@@ -997,6 +1022,101 @@ class _LoginPageState extends State<LoginPage>
           signupPasswordController.text);
     }
   }
+  void handleLoginResult(res, email) { 
+      if ((res["success"] == "true") || (res["success"] == true)) {
+        showInSnackBar(email.toString() + " שלום");
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ProfilePage()),
+        );
+      } else if (res["error"].contains("Authent")) {
+        showInSnackBar("שם משתמש או סיסמא אינם רשומים במערכת");
+      } else {
+        showInSnackBar("הקשר לשרת נכשל, אנא נסה שוב מאוחר יותר");
+      }
+  }
+  void preLogin() {
+    setState(() {
+      _bLoginEnabled = false;
+      _progressBarActive = true;
+    });
+  }
+  void postLogin() {
+     setState(() {
+        _bLoginEnabled = true;
+        _progressBarActive = false;
+      });
+  }
+  bool _isFacebookLoggedIn = false;
+
+  void onLoginStatusChanged(bool isLoggedIn) {
+    setState(() {
+      this._isFacebookLoggedIn = isLoggedIn;
+    });
+  }
+
+  var fbAppId = 707855096682092;
+  void initiateFacebookLogin() async {
+    preLogin();
+    var facebookLogin = FacebookLogin();
+    var facebookLoginResult =
+        await facebookLogin.logIn(["email"]);
+     switch (facebookLoginResult.status) {
+      case FacebookLoginStatus.error:
+        print("Error");
+        onLoginStatusChanged(false);
+        break;
+      case FacebookLoginStatus.cancelledByUser:
+        print("CancelledByUser");
+        onLoginStatusChanged(false);
+        break;
+      case FacebookLoginStatus.loggedIn:
+        print("LoggedIn");
+        var token = facebookLoginResult.accessToken.toMap();
+        for (var k in token.keys) {
+          token[k] = token[k].toString();
+        }
+       
+        _services.authenticateFacebook(token).then((res) {
+          handleLoginResult(res, res["email"]);
+        });
+        onLoginStatusChanged(true);
+        break;
+    }
+    postLogin();
+  }
+
+  GoogleSignIn _googleSignIn = GoogleSignIn(
+      scopes: <String>[
+        'email',
+        'https://www.googleapis.com/auth/contacts.readonly',
+      ],
+  );
+
+  Future<void> _handleGoogleSignIn() async {
+    try {
+      await _googleSignIn.signIn();
+    } catch (error) {
+      print("_handleSignIn, error {$error}");
+    }
+
+  }
+
+  Future<void> _handleGoogleSignOut() => _googleSignIn.disconnect();
+
+  void initiateGoogleLogin() async {
+    preLogin();
+    if (_googleAccount != null) {
+      await _googleSignIn.disconnect();
+    }
+    await _handleGoogleSignIn();
+    // _services.authenticateFacebook(token).then((res) {
+  //      postLogin();
+    //       handleLoginResult(res, res["email"]);
+    //     });
+    postLogin();
+  }
+
 
   void _onSignInButtonPress() {
     _pageController.animateToPage(0,

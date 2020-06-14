@@ -19,7 +19,9 @@
         android:requestLegacyExternalStorage="true" >
          <meta-data
                 android:name="com.google.android.geo.API_KEY"
-                android:value="AIzaSyBW1pc-eIwd8j_YkQiAutZ_QslvTVylodI"/>
+                android:value="AIzaSyCp3tOU4uEGR56CVM_ctrhEJoG2tedTyvs"/>
+        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
+            
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

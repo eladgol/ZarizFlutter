@@ -312,6 +312,21 @@ class Services {
     return res;
   }
 
+  Future<Map<String, dynamic>>  sendEmail(email) {
+     var res = postServer("/sendEmail/", { "email" : email}, false);
+        
+    res.then((jResponse) {
+          if (jResponse["success"] == true) {
+            try {
+             
+            } catch (e) {
+              
+            }
+          }
+    });
+    
+    return res;
+  }
   Future<Map<String, dynamic>>  postServer(relativeUrl, bodyMap, [bAddHeader=true]) async
   {
     var basicUrl = ip + ":" + port.toString();
@@ -392,14 +407,39 @@ class Services {
     print(jResponse.toString());
     return jResponse;
   }
-  
+  Future<Map<String,dynamic> > authenticateFacebook(Map<String,dynamic> token) async {
+    var sToken = json.decode(json.encode(token));
+     var res = postServer("/facebookAuth/", sToken, false);
+        
+    res.then((jResponse) {
+          print("performing facebook login received ${jResponse.toString()}");
+          if (jResponse["success"] == true) {
+        
+          }
+    });
+
+    return res;
+  }
+   Future<Map<String,dynamic> > authenticateGoogle(Map<String,dynamic> token) async {
+    var sToken = json.decode(json.encode(token));
+     var res = postServer("/googleAuth/", sToken, false);
+        
+    res.then((jResponse) {
+          print("performing google login received ${jResponse.toString()}");
+          if (jResponse["success"] == true) {
+        
+          }
+    });
+
+    return res;
+  }
   
 }
 class Singleton {
   static final Singleton _singleton = new Singleton._internal();
 
   factory Singleton() {
-    return _singleton;
+    return _singleton;  
   }
   CookieJar cj; 
   SharedPreferences persistentState;
@@ -412,9 +452,12 @@ void retreivePersistentState(SharedPreferences o) async {
   String tempPath = tempDir.path;
   Singleton().cj = new PersistCookieJar(dir:tempPath);
 }
-Future<String> saveImage( List<int> imageBytes, String ext) async {
+Future<String> getProfilePicFileName(String ext) async {
   String sDir = (await getApplicationDocumentsDirectory()).path;
-  String sFileName = sDir + "/profilePic." + ext;
+  return (sDir + "/profilePic." + ext);
+}
+Future<String> saveImage( List<int> imageBytes, String ext) async {
+  String sFileName = await getProfilePicFileName(ext);
   try {
     if (await File(sFileName).exists()) {
       await File(sFileName).delete();
@@ -432,17 +475,26 @@ Future<String> saveImage( List<int> imageBytes, String ext) async {
   
   return sFileName;
 }   
+
  Future<File> getImageFromNetwork(String url) async {
    try
    {
+     print("getImageFromNetwork, Start");
      var response = await http.get(url).timeout(Duration(seconds: 10), onTimeout:() { 
       print("getImageFromNetwork, waited timeout but no reply");
       return null;
      });
+     print("getImageFromNetwork, 2");
      var sFileName = Singleton().persistentState.getString("profilePic");
-     if (await File(sFileName).exists()) {
+     if (sFileName == null) {
+       String ct = response.headers["content-type"];
+       String ext = ct.split("/").last;
+       sFileName = await getProfilePicFileName(ext);
+     }
+     if (sFileName != null && await File(sFileName).exists()) {
       await File(sFileName).delete();
      }
+     Singleton().persistentState.setString("profilePic", sFileName);
      var file = await new File(sFileName).writeAsBytes(response.bodyBytes);
      print("getImageFromNetwork, success");
      return file;
