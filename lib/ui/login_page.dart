@@ -175,7 +175,7 @@ class _LoginPageState extends State<LoginPage>
 
   final FocusNode myFocusNodePassword = FocusNode();
   final FocusNode myFocusNodeEmail = FocusNode();
-  final FocusNode myFocusNodeName = FocusNode();
+  // final FocusNode myFocusNodeName = FocusNode();
 
   TextEditingController loginEmailController = new TextEditingController();
   TextEditingController loginPasswordController = new TextEditingController();
@@ -185,7 +185,7 @@ class _LoginPageState extends State<LoginPage>
   bool _obscureTextSignupConfirm = true;
 
   TextEditingController signupEmailController = new TextEditingController();
-  TextEditingController signupNameController = new TextEditingController();
+  //TextEditingController signupNameController = new TextEditingController();
   TextEditingController signupPasswordController = new TextEditingController();
   TextEditingController signupConfirmPasswordController =
       new TextEditingController();
@@ -379,7 +379,7 @@ class _LoginPageState extends State<LoginPage>
   void dispose() {
     myFocusNodePassword.dispose();
     myFocusNodeEmail.dispose();
-    myFocusNodeName.dispose();
+    // myFocusNodeName.dispose();
     _pageController?.dispose();
     super.dispose();
   }
@@ -532,6 +532,7 @@ class _LoginPageState extends State<LoginPage>
                             focusNode: myFocusNodeEmailLogin,
                             controller: loginEmailController,
                             keyboardType: TextInputType.emailAddress,
+                            textDirection: TextDirection.ltr,
                             style: TextStyle(
                                 fontFamily: "WorkSansSemiBold",
                                 fontSize: 16.0,
@@ -822,36 +823,36 @@ class _LoginPageState extends State<LoginPage>
                     height: 360.0,
                     child: Column(
                       children: <Widget>[
-                        Padding(
-                          padding: EdgeInsets.only(
-                              top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
-                          child: TextField(
-                            focusNode: myFocusNodeName,
-                            controller: signupNameController,
-                            keyboardType: TextInputType.text,
-                            textCapitalization: TextCapitalization.words,
-                            style: TextStyle(
-                                fontFamily: "WorkSansSemiBold",
-                                fontSize: 16.0,
-                                color: Colors.black),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              icon: Icon(
-                                FontAwesomeIcons.user,
-                                color: Colors.black,
-                              ),
-                              hintText: "שם",
-                              hintStyle: TextStyle(
-                                  fontFamily: "WorkSansSemiBold",
-                                  fontSize: 16.0),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          width: 250.0,
-                          height: 1.0,
-                          color: Colors.grey[400],
-                        ),
+                        // Padding(
+                        //   padding: EdgeInsets.only(
+                        //       top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
+                        //   child: TextField(
+                        //     focusNode: myFocusNodeName,
+                        //     controller: signupNameController,
+                        //     keyboardType: TextInputType.text,
+                        //     textCapitalization: TextCapitalization.words,
+                        //     style: TextStyle(
+                        //         fontFamily: "WorkSansSemiBold",
+                        //         fontSize: 16.0,
+                        //         color: Colors.black),
+                        //     decoration: InputDecoration(
+                        //       border: InputBorder.none,
+                        //       icon: Icon(
+                        //         FontAwesomeIcons.user,
+                        //         color: Colors.black,
+                        //       ),
+                        //       hintText: "שם",
+                        //       hintStyle: TextStyle(
+                        //           fontFamily: "WorkSansSemiBold",
+                        //           fontSize: 16.0),
+                        //     ),
+                        //   ),
+                        // ),
+                        // Container(
+                        //   width: 250.0,
+                        //   height: 1.0,
+                        //   color: Colors.grey[400],
+                        // ),
                         Padding(
                           padding: EdgeInsets.only(
                               top: 20.0, bottom: 20.0, left: 25.0, right: 25.0),
@@ -1013,12 +1014,12 @@ class _LoginPageState extends State<LoginPage>
   signupButtonPressed() {
     if (signupConfirmPasswordController.text != signupPasswordController.text) {
       showInSnackBar("הסיסמאות לא תואמות");
-    } else if (signupNameController.text.isEmpty) {
-      showInSnackBar("שכחת לציין את השם");
+    // } else if (signupNameController.text.isEmpty) {
+    //   showInSnackBar("שכחת לציין את השם");
     } else if (signupEmailController.text.isEmpty) {
       showInSnackBar("שכחת לציין את כתובת הדואר האלקטרוני");
     } else {
-      onSignUpPressed(signupNameController.text, signupEmailController.text,
+      onSignUpPressed(signupEmailController.text, signupEmailController.text,
           signupPasswordController.text);
     }
   }
