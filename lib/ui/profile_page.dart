@@ -1545,6 +1545,7 @@ class _ProfilePageState extends State<ProfilePage>
                   return PopupMenuItem<AppBarChoice>(
                     value: choice,
                     child: Text(choice.title),
+                    textStyle: TextStyle(color: Colors.white),
                   );
                 }).toList();
               },
@@ -1585,7 +1586,7 @@ class _ProfilePageState extends State<ProfilePage>
                         backgroundColor: ZarizTheme.Colors.zarizGradientStart)
                     : new Container(),
                 internalWidget,
-                Align(child: actionButtonWidget, alignment: Alignment.bottomCenter),
+                Padding(child: Align(child: actionButtonWidget, alignment: Alignment.bottomCenter), padding: EdgeInsets.only(top: _heightSwitch / 4)),
               ],
             ),
           ),
@@ -2264,7 +2265,7 @@ class _ProfilePageState extends State<ProfilePage>
     return new Column(children: [
       RawMaterialButton(
         constraints: //bIsEmpty ? 
-            BoxConstraints.loose(Size(_widthSwitch / 6, _heightSwitch)),
+            BoxConstraints.loose(Size(_widthSwitch / 8, _heightSwitch)),
             //: BoxConstraints.loose(Size(88.0, 36.0)),
         fillColor: Colors.green[300],
         splashColor: Colors.white,
@@ -2275,7 +2276,7 @@ class _ProfilePageState extends State<ProfilePage>
             //borderRadius: new BorderRadius.circular(30.0),
             color: Colors.green[300],
           ),
-          child: new Icon(Icons.check, size: _widthSwitch / 10),
+          child: new Icon(Icons.check, size: _widthSwitch / 8),
         ),
         onPressed: (() {
           setState(() {
@@ -2352,6 +2353,8 @@ class _ProfilePageState extends State<ProfilePage>
                   fillColor: job.details.bDetailsUpdated ? Colors.blue[300] : Colors.grey[500],
                   splashColor: Colors.white,
                   child: new Container(
+                    width : _widthSwitch / 8,
+                    height: _widthSwitch / 8,
                     decoration: new BoxDecoration(
                       shape: BoxShape
                           .circle, // You can use like this way or like the below line
@@ -2359,7 +2362,7 @@ class _ProfilePageState extends State<ProfilePage>
                       color: job.details.bDetailsUpdated ? Colors.blue[300] : Colors.grey[500],
                     ),
                     child: new Icon(bShrink ?
-                        FontAwesomeIcons.pencilAlt : FontAwesomeIcons.users),
+                        FontAwesomeIcons.pencilAlt : FontAwesomeIcons.users, size: _widthSwitch / 12),
                   ),
                   onPressed: (() {
                     WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
@@ -2440,6 +2443,8 @@ class _ProfilePageState extends State<ProfilePage>
         fillColor: Colors.green[300],
         splashColor: Colors.white,
         child: new Container(
+          width: _widthSwitch / 8,
+          height: _widthSwitch / 8,
           decoration: new BoxDecoration(
             shape: BoxShape
                 .circle, // You can use like this way or like the below line
@@ -2448,7 +2453,7 @@ class _ProfilePageState extends State<ProfilePage>
           ),
           child: bIsEmpty
               ? new Icon(Icons.add, size: _widthSwitch / 8)
-              : Icon(Icons.add),
+              : Icon(Icons.add, size: _widthSwitch / 8),
         ),
         onPressed: (() {
           setState(() {
