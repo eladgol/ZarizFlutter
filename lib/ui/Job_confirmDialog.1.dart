@@ -30,6 +30,7 @@ class _JobConfirmPageState extends State<JobConfirmPage> {
       body: NotificationListener<OverscrollIndicatorNotification>(
         onNotification: (overscroll) {
           overscroll.disallowGlow();
+          return false;
         },
         child: new  Container(
           height: MediaQuery.of(context).size.height >= 775.0

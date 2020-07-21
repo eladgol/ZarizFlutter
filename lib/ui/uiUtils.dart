@@ -3,12 +3,14 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'dart:core';
 
-Widget createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData, {direction=null, keyboardType=TextInputType.text, maxLines = 1, validator=null, textSize=16.0, bCenter =false, onTapFunction=null, enableEdit=true}) {
+Widget createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData,
+ {direction=null, keyboardType=TextInputType.text, maxLines = 1, validator=null, textSize=16.0, bCenter =false, 
+ onTapFunction=null, enableEdit=true, dropDownButton = null}) {
     return new Padding(
       padding: bCenter? EdgeInsets.only(top:10.0, bottom:10.0) :
         EdgeInsets.only(top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
       child: TextField(
-        textDirection: direction,
+        textDirection: (direction == null) ? TextDirection.rtl : direction,
         enabled: enableEdit,
         focusNode: focusNode,
         controller: controller,
@@ -22,6 +24,7 @@ Widget createTextField(String hintText, FocusNode focusNode, TextEditingControll
             fontSize: textSize,
             color: Colors.black),
         decoration: InputDecoration(
+          suffixIcon: dropDownButton == null ? null : dropDownButton,
           border: InputBorder.none,
           focusedBorder : InputBorder.none,
           icon: Icon(
@@ -32,7 +35,7 @@ Widget createTextField(String hintText, FocusNode focusNode, TextEditingControll
           hintText: hintText,
           hintStyle: TextStyle(
               fontFamily: "WorkSansSemiBold", fontSize: textSize),
-          
+          labelText: (controller?.text ?? "") == "" ?  null : hintText,
         ),
       ),
     );
@@ -70,13 +73,13 @@ Widget createTitle(String sTitle, {IconData icon, textSize=16.0, bCenter =false,
       )
     );
 }
-Widget createTitleNoPadding(String sTitle, {IconData icon, textSize=16.0, bCenter =false, bLeft = false, GlobalKey key, color = Colors.black})
+Widget createTitleNoPadding(String sTitle, {IconData icon, textSize=16.0, bCenter =false, bLeft = false, color = Colors.black})
 {
   return new Padding(
       padding: bCenter? EdgeInsets.only(top:0.0, bottom:0.0) :
         EdgeInsets.only(top: 0.0, bottom: 0.0, left: 0.0, right: 0.0),
       child: Text(sTitle,
-        key: (key != null) ? key : GlobalKey(),
+        //key: (key != null) ? key : GlobalKey(),
         style: TextStyle(
           fontFamily: "WorkSansSemiBold",
           fontSize: textSize,

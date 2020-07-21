@@ -25,10 +25,13 @@ import 'package:zariz_app/ui/Job_confirmDialog.dart';
 import 'package:zariz_app/ui/Job_confirmHireDialog.dart';
 import 'package:zariz_app/ui/Job_confirmFiredDialog.dart';
 import 'package:zariz_app/ui/Job_confirmResignDialog.dart';
+import 'package:zariz_app/ui/Job_confirmCanceledDialog.dart';
 import 'package:zariz_app/ui/mapWidget.dart';
 import 'package:latlong/latlong.dart';
 
 import 'dart:math';
+
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 class CurrentLocation {
   double lat = 0.0;
@@ -88,12 +91,10 @@ class JobsContext {
 class JobsUI {
   TextEditingController conDiscription;
   TextEditingController connOccupationList;
-  TextEditingController connWorkers;
   TextEditingController conPlace;
   TextEditingController conWage;
   FocusNode fnDiscription;
   AlwaysDisabledFocusNode fnnOccupationList;
-  FocusNode fnnWorkers;
   FocusNode fnPlace;
   FocusNode fnWage;
 
@@ -101,26 +102,22 @@ class JobsUI {
     this.fnDiscription = new FocusNode();
     this.fnPlace = new FocusNode();
     this.fnWage = new FocusNode();
-    this.fnnWorkers = new FocusNode();
     this.fnnOccupationList = new AlwaysDisabledFocusNode();
 
     this.conDiscription = new TextEditingController(
         text: (jd._discription != null ? jd._discription.toString() : ""));
     this.conWage = new TextEditingController(
-        text: (jd._wage != null ? jd._wage.toString() : ""));
+        text: (jd._wage != null ? jd._wage.toString() : "29.12"));
     this.conPlace = new TextEditingController(
         text: (jd._place != null ? jd._place.toString() : ""));
     this.connOccupationList = new TextEditingController(
         text: (jd._lOccupationFieldListString.length > 0
             ? jd._lOccupationFieldListString[0].toString()
             : ""));
-    this.connWorkers = new TextEditingController(
-        text: (jd.nWorkers != null ? jd.nWorkers.toString() : ""));
   }
 }
 
 class JobsDetails {
-  int nWorkers;
 
   String _discription;
   String _jobId = "-1";
@@ -129,6 +126,7 @@ class JobsDetails {
   List<String> _lOccupationFieldListString = [];
   String _place;
   double _wage;
+  bool bDetailsUpdated = false;
   String get discription {
     return _discription;
   }
@@ -154,11 +152,11 @@ class JobsDetails {
         'place': _place,
         'lat': _lat.toString(),
         'lng': _lng.toString(),
-        'nWorkers': nWorkers.toString(),
         'lOccupationFieldListString': _lOccupationFieldListString.length > 0
             ? _lOccupationFieldListString[0]
             : ""
       };
+
 }
 
 class JobDetailsForWorkerUI {
@@ -272,13 +270,14 @@ List<String> fixEncoding(String sIn) {
   });
   return lOut;
 }
-
+enum eChoice {updateDetails, logoff}
 List<AppBarChoice> choices = <AppBarChoice>[
-  AppBarChoice(title: 'update', icon: Icons.check),
-  AppBarChoice(title: 'jobs', icon: FontAwesomeIcons.screwdriver),
-  AppBarChoice(title: 'logoff', icon: FontAwesomeIcons.signOutAlt),
-  AppBarChoice(title: 'debug', icon: FontAwesomeIcons.bug),
-  AppBarChoice(title: 'feed', icon: FontAwesomeIcons.solidBell),
+  //AppBarChoice(title: 'update', icon: Icons.check),
+  //AppBarChoice(title: 'jobs', icon: FontAwesomeIcons.screwdriver),
+  AppBarChoice(title: 'עדכן פרטים', icon: FontAwesomeIcons.pencilAlt),
+  AppBarChoice(title: 'יציאה', icon: FontAwesomeIcons.signOutAlt),
+  //AppBarChoice(title: 'debug', icon: FontAwesomeIcons.bug),
+  //AppBarChoice(title: 'feed', icon: FontAwesomeIcons.solidBell),
 ];
 
 class ProfilePage extends StatefulWidget {
@@ -342,15 +341,17 @@ class _ProfilePageState extends State<ProfilePage>
     "ש",
     "ת"
   ];
+  double _h;
+  double _w;
 
   AndroidDeviceInfo _androidInfo;
   bool _bBossMode = false;
-
+  
   bool _bIsLoadingPlaces = false;
-  bool _bJobMenu = false;
+  bool _bJobMenu = true; // we start from job menu unless the details are not full
   bool _bMapView = false;
   BossDetails _bossDetails = new BossDetails();
-  bool _bShrinkJobMenu = false;
+  bool _bShrinkJobMenu = true; 
   bool _bUpdatingDetails = false;
   bool _bWorkerIsUpdated = true;
   bool _bWorkerDetailsAreFull = false;
@@ -392,7 +393,6 @@ class _ProfilePageState extends State<ProfilePage>
   ];
 
   List<String> _lJobsIDsMarkedForDeletion = [];
-  List<GlobalKey> _lKeyForJobDiscription;
   List<DropdownMenuItem<String>> _lOccupationDropDown = [];
   List<DropdownMenuItem<String>> _lPlacesBossDropDownList = [
     new DropdownMenuItem<String>(
@@ -441,6 +441,8 @@ class _ProfilePageState extends State<ProfilePage>
 
   Color _zarizGradientColorAnimation;
   var _angle = 0.0;
+
+  OverlayEntry _overlayEntry;
 
   @override
   void dispose() {
@@ -520,7 +522,43 @@ class _ProfilePageState extends State<ProfilePage>
                     )),
           );
           res.then((s) {
-            print("confirm job before refresh");
+            print("Offer job before refresh");
+            var res2 = refreshJobs();
+          });
+        } else if (message["data"]["message_status"] == "Canceled") {
+          String sMsg = "${message["data"]["discription"]} \n";
+          sMsg +=
+              "\nהעבודה בוטלה${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+          sMsg += "שכר ${message["data"]["wage"]}\n";
+          sMsg += "מיקום ${message["data"]["place"]}\n";
+          final res = Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => JobConfirmCanceledPage(
+                      sTitle: sMsg,
+                      jobID: message["data"]["jobID"],
+                    )),
+          );
+          res.then((s) {
+            print("Canceled job before refresh");
+            var res2 = refreshJobs();
+          });
+        } else if (message["data"]["message_status"] == "Accepted") {
+          String sMsg = "${message["data"]["discription"]} \n";
+          sMsg +=
+              "\vהתעניינות בעבודה מ ${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+          sMsg += "שכר ${message["data"]["wage"]}\n";
+          sMsg += "מיקום ${message["data"]["place"]}\n";
+          final res = Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => JobConfirmPage(
+                      sTitle: sMsg,
+                      jobID: message["data"]["jobID"],
+                    )),
+          );
+          res.then((s) {
+            print("Accepted job before refresh");
             var res2 = refreshJobs();
           });
         } else if (message["data"]["message_status"] == "Hired") {
@@ -610,6 +648,24 @@ class _ProfilePageState extends State<ProfilePage>
             print("confirm job before refresh");
             var res2 = refreshJobs();
           });
+        } else if (message["data"]["message_status"] == "Canceled") {
+          String sMsg = "${message["data"]["discription"]} \n";
+          sMsg +=
+              "\nהעבודה בוטלה${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+          sMsg += "שכר ${message["data"]["wage"]}\n";
+          sMsg += "מיקום ${message["data"]["place"]}\n";
+          final res = Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => JobConfirmCanceledPage(
+                      sTitle: sMsg,
+                      jobID: message["data"]["jobID"],
+                    )),
+          );
+          res.then((s) {
+            print("Canceled job before refresh");
+            var res2 = refreshJobs();
+          });
         } else if (message["data"]["message_status"] == "Hired") {
           String sMsg = "${message["data"]["discription"]} \n";
           sMsg +=
@@ -692,6 +748,24 @@ class _ProfilePageState extends State<ProfilePage>
           );
           res.then((s) {
             print("confirm job before refresh");
+            var res2 = refreshJobs();
+          });
+        } else if (message["data"]["message_status"] == "Canceled") {
+          String sMsg = "${message["data"]["discription"]} \n";
+          sMsg +=
+              "\nהעבודה בוטלה${message["data"]["firstName"]} ${message["data"]["lastName"]} \n";
+          sMsg += "שכר ${message["data"]["wage"]}\n";
+          sMsg += "מיקום ${message["data"]["place"]}\n";
+          final res = Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => JobConfirmCanceledPage(
+                      sTitle: sMsg,
+                      jobID: message["data"]["jobID"],
+                    )),
+          );
+          res.then((s) {
+            print("Canceled job before refresh");
             var res2 = refreshJobs();
           });
         } else if (message["data"]["message_status"] == "Hired") {
@@ -833,11 +907,26 @@ class _ProfilePageState extends State<ProfilePage>
           _textForAutoCompleteWorkerChanged();
           setState(() {
             _bWorkerIsUpdated = false;
+        //     this._overlayEntry = this._createOverlayEntry();
+        // Overlay.of(context).insert(this._overlayEntry);
           });
         });
+        
+        if (!areDetailsFull()) {
+          setState((){
+           _bJobMenu = false;
+          });
+        }
+        
+      } else if (res["error"] == "no connection") {
+         Navigator.pop(this.context, "הקשר לשרת נכשל, אנא נסה שוב מאוחר יותר");
       }
+      
     });
 
+    if (_bWorkerIsUpdated == false) {
+      _updatingDetails();
+    }
     var res2 = refreshJobs();
     // res2.then((bSuccess){
     //   if (bSuccess)
@@ -867,7 +956,10 @@ class _ProfilePageState extends State<ProfilePage>
         });
       }
     });
-
+    if (_overlayEntry!=null) {
+    OverlayState s = Overlay.of(context);
+    s.insert(this._overlayEntry);
+    }
     var resFutureBoss = _services.getBossFieldDetails();
     resFutureBoss.then((res) {
       if ((res["success"] == "true") || (res["success"] == true)) {
@@ -910,6 +1002,21 @@ class _ProfilePageState extends State<ProfilePage>
           });
         });
       }
+    //   myFocusNodePlace.addListener(() {
+    //   if (myFocusNodePlace.hasFocus) {
+
+    //     this._overlayEntry = this._createOverlayEntry();
+    //     Overlay.of(context).insert(this._overlayEntry);
+
+    //   } else {
+    //     this._overlayEntry.remove();
+    //   }
+    // });
+      if (!areDetailsFull()) {
+          setState((){
+           _bJobMenu = false;
+          });
+        }
     });
 
     SystemChrome.setPreferredOrientations([
@@ -978,37 +1085,81 @@ class _ProfilePageState extends State<ProfilePage>
           ];
         });
       });
+
     } catch (e) {}
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      var h = MediaQuery.of(context).size.height;
-      var w = _heightImage * _image.width / _image.height;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _h = MediaQuery.of(context).size.height;
+      _w = _heightImage * _image.width / _image.height;
       setState(() {
-        _heightImage = h * 0.15;
-        _heightSwitch = h * 0.05;
+        _heightImage = _h * 0.15;
+        _heightSwitch = _h * 0.05;
         _widthSwitch = _heightSwitch * 10;
-        _heightMain = h * 0.75;
+        _heightMain = _h * 0.75;
       });
       String fileName;
       try {
         fileName = Singleton().persistentState.getString('profilePic');
       } catch (e) {}
-
-      if (fileName == null) {
+      var bNotExists = (fileName==null) ? false : await File(fileName).exists();
+      if (bNotExists) {
+        if (fileName!=null) {
+          Singleton().persistentState.remove('profilePic');
+        }
         _image = new Image.asset('assets/img/no_portrait.png',
-            fit: BoxFit.cover, width: w, height: _heightImage);
+            fit: BoxFit.cover, width: _w, height: _heightImage);
       } else {
-        _image = Image.file(File(fileName),
-            fit: BoxFit.cover, width: w, height: _heightImage);
+        try {
+          _image = Image.file(File(fileName),
+            fit: BoxFit.cover, width: _w, height: _heightImage);
+            
+        } catch (e) {
+            print("addPostFrameCallback, File error - $e");
+        }
+        
       }
+      WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
+    
     });
+    
   }
 
-  void _select(AppBarChoice choice) {
-    // Causes the app to rebuild with the new _selectedChoice.
-    setState(() {
-      if (choice.title == "update") {
-        _bUpdatingDetails = true;
+  Map<String, dynamic> areJobDetailsFull(JobsContext j) {
+    
+    String errMsg = "None";
+    bool success = false;
+    //WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
+    var focusNode = j.ui.fnDiscription;
+    if ((j.details?.discription ?? "") == "") {
+      errMsg = "הוסף תיאור לעבודה";
+      focusNode = j.ui.fnDiscription;
+    } else if ((j.details?.lat ?? -1 )< 0 || (j.details.lng  ?? -1) < 0) {
+      errMsg = "יש לבחור מיקום";
+      focusNode = j.ui.fnPlace;
+    } else if ((j.details?.place ?? "" ) == "") {
+      errMsg = "יש לבחור מיקום";
+      focusNode = j.ui.fnPlace;
+    } else if ((j.details?.wage ?? -1) < 0) {
+      errMsg = "שכר לא תקין";
+      focusNode = j.ui.fnWage;
+    } else if (j.details._lOccupationFieldListString.length == 0) {
+      focusNode = j.ui.fnnOccupationList;
+      errMsg = "יש לבחור תחום עיסוק";
+    } else  {
+      success = true;
+    }
+    if (!success) {
+      setState(() {
+        showInSnackBar(errMsg);
+        focusNode.requestFocus();
+      });
+    }
+    
+    return {"success" : success, "errMsg" : errMsg};
+
+  } 
+  void _updatingDetails() {
+    _bUpdatingDetails = true;
         if (!_bWorkerIsUpdated) {
           print(_workerDetails.toJSON());
 
@@ -1039,6 +1190,10 @@ class _ProfilePageState extends State<ProfilePage>
         }
         if (_iJobIsUpdated != -1) {
           if (_idJobIsUpdated == "-1") {
+            var r = areJobDetailsFull(_lJobs[_iJobIsUpdated]);
+            if (!r["success"]) {
+              return;
+            }
             _services
                 .updateJobAsBoss(_lJobs[_iJobIsUpdated].details.toJSON())
                 .then((res) {
@@ -1046,6 +1201,7 @@ class _ProfilePageState extends State<ProfilePage>
                   ((res["success"] == "true") || (res["success"] == true))) {
                 setState(() {
                   _lJobs[_iJobIsUpdated].details._jobId = res['jobID'];
+                  _lJobs[_iJobIsUpdated].details.bDetailsUpdated = true;
                   _iJobIsUpdated = -1;
                   _idJobIsUpdated = "";
                   _bUpdatingDetails = false;
@@ -1074,9 +1230,11 @@ class _ProfilePageState extends State<ProfilePage>
                           (res["success"] == true))) {
                     setState(() {
                       _lJobs[_iJobIsUpdated].details._jobId = res['jobID'];
+                      _lJobs[_iJobIsUpdated].details.bDetailsUpdated = true;
                       _iJobIsUpdated = -1;
                       _idJobIsUpdated = "";
                       _bUpdatingDetails = false;
+                      
                     });
                   }
                 });
@@ -1091,37 +1249,53 @@ class _ProfilePageState extends State<ProfilePage>
               });
             }
           });
+          
         }
-      }
-      if (choice.title == "jobs") {
+  }
+  void _select(AppBarChoice choice) {
+    // Causes the app to rebuild with the new _selectedChoice.
+      if (choices.indexOf(choice) == eChoice.updateDetails.index) {
         setState(() {
-          _bJobMenu = !_bJobMenu;
-          if (_bJobMenu) {
-            var res2 = refreshJobs();
-            res2.then((bSuccess) {
-              if (bSuccess) {
-                setState(() {
-                  _bUpdatingDetails = false;
-                });
-              }
-            });
-          }
+          _bJobMenu = false;
         });
+      } else if (choices.indexOf(choice) == eChoice.logoff.index) {
+
       }
+      // if (choice.title == "update") {
+      //   _updatingDetails();
+      // }
+      // if (choice.title == "jobs") {
+      //   setState(() {
+      //     _bJobMenu = !_bJobMenu;
+      //     if (_bJobMenu) {
+      //       var res2 = refreshJobs();
+      //       res2.then((bSuccess) {
+      //         if (bSuccess) {
+      //           setState(() {
+      //             _bUpdatingDetails = false;
+      //             _updatingDetails();
+      //           });
+      //         }
+      //       });
+      //     }
+      //   });
+      // }
       // if (choice.title == "debug") {
       //     print(_workerDetails.toString());
       //     debugDumpApp();
       //     debugDumpRenderTree();
       // }
-    });
+
+    //});
   }
 
-  void setPlaceLatLng(String sPlace, bool bIsBoss, {int jobIndex = -1}) {
+  void setPlaceLatLng(String sPlace, {String jobId = ""}) {
     _placesAPI.searchByText(sPlace, language: "iw").then((a) {
       if (a.results.length > 0) {
         setState(() {
-          if (bIsBoss) {
-            if (jobIndex != -1) {
+          if (_bBossMode) {
+            if (jobId != "") {
+              int jobIndex = _lJobs.indexWhere((j) => (j.details.jobId == jobId));
               _lJobs[jobIndex].details._lat =
                   a.results[0].geometry.location.lat;
               _lJobs[jobIndex].details._lng =
@@ -1194,8 +1368,8 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Image getAdjustedImageFromFile(File img, ImageInfo info) {
-    var w = _heightImage * info.image.width / info.image.height;
-    return (Image.file(img, fit: BoxFit.fill, width: w, height: _heightImage));
+    var _w = _heightImage * info.image.width / info.image.height;
+    return (Image.file(img, fit: BoxFit.fill, width: _w, height: _heightImage));
   }
 
   void imagePick(ImageSource _source) {
@@ -1307,12 +1481,14 @@ class _ProfilePageState extends State<ProfilePage>
     //   ),
     // );
   }
-
-  Widget buildFrame(BuildContext context, Widget internalWidget,
-      GlobalKey<ScaffoldState> scaffoldKey) {
-    bool bDetailsAreFull = (_bBossMode && _bBossDetailsAreFull) ||
+  bool areDetailsFull() {
+    return (_bBossMode && _bBossDetailsAreFull) ||
         (!_bBossMode && _bWorkerDetailsAreFull);
-
+  }
+  Widget buildFrame(BuildContext context, Widget internalWidget,
+      GlobalKey<ScaffoldState> scaffoldKey, actionButtonWidget) {
+    bool bDetailsAreFull = areDetailsFull();
+    
     return new Directionality(
       textDirection: TextDirection.rtl,
       child: new Scaffold(
@@ -1324,46 +1500,48 @@ class _ProfilePageState extends State<ProfilePage>
             fit: BoxFit.scaleDown,
           ),
           actions: <Widget>[
-            LayoutBuilder(builder: (context, constraint) {
-              return new IconButton(
-                icon: new Icon(FontAwesomeIcons.check,
-                    size: constraint.biggest.height * 0.51),
-                onPressed: () {
-                  _select(choices[0]);
-                },
-                color: (_bWorkerIsUpdated && _iJobIsUpdated == -1)
-                    ? Colors.green
-                    : Colors.red,
-                tooltip: (_bWorkerIsUpdated && _iJobIsUpdated == -1)
-                    ? "מעודכן"
-                    : "עדכן",
-              );
-            }),
+            // LayoutBuilder(builder: (context, constraint) {
+            //   return new IconButton(
+            //     icon: new Icon(FontAwesomeIcons.check,
+            //         size: constraint.biggest.height * 0.51),
+            //     onPressed: () {
+            //       _select(choices[0]);
+            //     },
+            //     color: (_bWorkerIsUpdated && _iJobIsUpdated == -1)
+            //         ? Colors.green
+            //         : Colors.red,
+            //     tooltip: (_bWorkerIsUpdated && _iJobIsUpdated == -1)
+            //         ? "מעודכן"
+            //         : "עדכן",
+            //   );
+            // }),
             // action button
-            LayoutBuilder(builder: (context, constraint) {
-              return new IconButton(
-                icon: _bJobMenu
-                    ? Icon(FontAwesomeIcons.pencilAlt,
-                        size: constraint.biggest.height * 0.45,
-                        color: ZarizTheme.Colors.zarizGradientStart2)
-                    : Icon(FontAwesomeIcons.hammer,
-                        size: constraint.biggest.height * 0.45,
-                        color: bDetailsAreFull
-                            ? ZarizTheme.Colors.zarizGradientStart
-                            : Colors.grey),
-                disabledColor: Colors.grey,
-                tooltip: _bJobMenu ? "עריכת פרטים" : "הצגת עבודות",
-                onPressed: () {
-                  bDetailsAreFull
-                      ? _select(choices[1])
-                      : showInSnackBar("הפרטים לא מלאים");
-                },
-              );
-            }),
+            // LayoutBuilder(builder: (context, constraint) {
+            //   return new IconButton(
+            //     icon: _bJobMenu
+            //         ? Icon(FontAwesomeIcons.pencilAlt,
+            //             size: constraint.biggest.height * 0.45,
+            //             color: Colors.white54)
+            //         : Icon(FontAwesomeIcons.hammer,
+            //             size: constraint.biggest.height * 0.45,
+            //             color: bDetailsAreFull
+            //                 ? ZarizTheme.Colors.zarizGradientStart
+            //                 : Colors.grey),
+            //     disabledColor: Colors.grey,
+            //     tooltip: _bJobMenu ? "עריכת פרטים" : "הצגת עבודות",
+            //     onPressed: () {
+            //       bDetailsAreFull
+            //           ? _select(choices[1])
+            //           : showInSnackBar("הפרטים לא מלאים");
+            //     },
+            //   );
+            // }),
             PopupMenuButton<AppBarChoice>(
+              color: Colors.brown,
               onSelected: _select,
               itemBuilder: (BuildContext context) {
-                return choices.skip(2).map((AppBarChoice choice) {
+                //return choices.skip(2).map((AppBarChoice choice) {
+                return choices.map((AppBarChoice choice) {
                   return PopupMenuItem<AppBarChoice>(
                     value: choice,
                     child: Text(choice.title),
@@ -1407,6 +1585,7 @@ class _ProfilePageState extends State<ProfilePage>
                         backgroundColor: ZarizTheme.Colors.zarizGradientStart)
                     : new Container(),
                 internalWidget,
+                Align(child: actionButtonWidget, alignment: Alignment.bottomCenter),
               ],
             ),
           ),
@@ -1414,27 +1593,41 @@ class _ProfilePageState extends State<ProfilePage>
       ),
     );
   }
-
+  Widget pickActionButtonWidget() {
+    
+    //return Container();
+    if (_bJobMenu) {
+      if (_bBossMode) {
+        //return Container();
+        return addJobWidgetActionButton();
+      } else {
+        //return Container();
+        return addWorkerJobActionButton();
+      }
+    } else {
+        return addUpdateDetailsWidgetActionButton(true);
+    }
+  }
   Widget build(BuildContext context) {
-    return buildFrame(context, buildInternal(context), _scaffoldKey);
+    return buildFrame(context, buildInternal(context), _scaffoldKey, pickActionButtonWidget());
   }
 
   Future<bool> refreshJobs() async {
-    _services.getAllJobsAsWorker().then((res) {
+    _services.getAllJobsAsWorker().then((res) { 
       if (res["success"] == "true" || res["success"] == true) {
         _jobDetailsForWorkerList = [];
         for (int i = 0; i < (res.length - 1); i++) {
           var resJ = res[i.toString()];
           var j = resJ["JobDetails"];
           JobsDetails jd = new JobsDetails()
-            ..nWorkers = j["nWorkers"]
             .._place = j["place"]
             .._jobId = j["jobID"]
             .._discription = j["discription"]
             .._lat = j["lat"]
             .._lng = j["lng"]
             .._wage = j["wage"]
-            .._lOccupationFieldListString = [j["occupationFieldListString"]];
+            .._lOccupationFieldListString = [j["occupationFieldListString"]]
+            ..bDetailsUpdated = resJ["detailsFull"];
           var b = resJ["BossDetails"];
           BossDetails bd = new BossDetails()
             .._buisnessName = b["buisnessName"]
@@ -1461,15 +1654,14 @@ class _ProfilePageState extends State<ProfilePage>
         for (int i = 0; i < (res.length - 1); i++) {
           var j = res[i.toString()];
           _lJobs.add(new JobsContext(new JobsDetails()
-            ..nWorkers = j["nWorkers"]
             .._place = j["place"]
             .._jobId = j["jobID"]
             .._discription = j["discription"]
             .._lat = j["lat"]
             .._lng = j["lng"]
             .._wage = j["wage"]
-            .._lOccupationFieldListString = [j["occupationFieldListString"]]));
-          _lJobs[i].details.nWorkers = j["nWorkers"];
+            .._lOccupationFieldListString = [j["occupationFieldListString"]]
+            ..bDetailsUpdated = j["detailsFull"]));
           j["workerID_responded"].forEach((workers) {
             var resFuture = _services.getWorkerDetailsForID(workers);
             resFuture.then((res) {
@@ -1477,7 +1669,7 @@ class _ProfilePageState extends State<ProfilePage>
                 try {
                   var oldVal = _lJobs[i]
                       .lWorkersResponded
-                      .firstWhere((a) => a._userID == res["userID"]);
+                      ?.firstWhere((a) => a._userID == res["userID"]);
                   _lJobs[i].lWorkersResponded.remove(oldVal);
                 } catch (e) {}
                 _lJobs[i].lWorkersResponded.add(new WorkerDetails()
@@ -1505,7 +1697,7 @@ class _ProfilePageState extends State<ProfilePage>
                 try {
                   var oldVal = _lJobs[i]
                       .lWorkersNotified
-                      .firstWhere((a) => a._userID == res["userID"]);
+                      ?.firstWhere((a) => a._userID == res["userID"]);
                   _lJobs[i].lWorkersNotified.remove(oldVal);
                 } catch (e) {}
                 _lJobs[i].lWorkersNotified.add(new WorkerDetails()
@@ -1534,7 +1726,7 @@ class _ProfilePageState extends State<ProfilePage>
                 try {
                   var oldVal = _lJobs[i]
                       .lWorkersAuthorized
-                      .firstWhere((a) => a._userID == res["userID"]);
+                      ?.firstWhere((a) => a._userID == res["userID"]);
                   _lJobs[i].lWorkersAuthorized.remove(oldVal);
                 } catch (e) {}
                 _lJobs[i].lWorkersAuthorized.add(new WorkerDetails()
@@ -1563,7 +1755,7 @@ class _ProfilePageState extends State<ProfilePage>
                 try {
                   var oldVal = _lJobs[i]
                       .lWorkersHired
-                      .firstWhere((a) => a._userID == res["userID"]);
+                      ?.firstWhere((a) => a._userID == res["userID"]);
                   _lJobs[i].lWorkersHired.remove(oldVal);
                 } catch (e) {}
                 _lJobs[i].lWorkersHired.add(new WorkerDetails()
@@ -1599,8 +1791,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   _textForAutoCompleteChanged(
-      TextEditingController controller, List<DropdownMenuItem<String>> l) {
-    String t = "${controller.text}";
+      String t, List<DropdownMenuItem<String>> l) {
     if ((t.length > 2) && (t.length > _tLength)) {
       setState(() {
         _bIsLoadingPlaces = true;
@@ -1636,12 +1827,17 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   _textForAutoCompleteBossChanged() {
-    _textForAutoCompleteChanged(_controllerBossPlace, _lPlacesBossDropDownList);
+    _textForAutoCompleteChanged(_controllerBossPlace.text, _lPlacesBossDropDownList);
   }
 
   _textForAutoCompleteWorkerChanged() {
     _textForAutoCompleteChanged(
-        _controllerWorkerPlace, _lPlacesWorkerDropDownList);
+        _controllerWorkerPlace.text, _lPlacesWorkerDropDownList);
+      setState(() {
+        
+      
+    // this._overlayEntry = this._createOverlayEntry();
+    });
   }
 
   void showInSnackBar(String value) {
@@ -1673,7 +1869,7 @@ class _ProfilePageState extends State<ProfilePage>
     double pos = _switchAnimCurve.value * switchAnimCurveValue_Boss_Pos +
         (1 - _switchAnimCurve.value) * switchAnimCurveValue_Worker_Pos -
         1.0;
-    print("pos - $pos org - ${_switchAnimCurve.value}");
+    //print("pos - $pos org - ${_switchAnimCurve.value}");
     return pos;
     //print("switchAnimCurveValueModified - $switchAnimCurveValue_Boss org - ${_switchAnimCurve.value}");
     //return _bBossMode?switchAnimCurveValue_Boss: 0.0;
@@ -1747,9 +1943,12 @@ class _ProfilePageState extends State<ProfilePage>
   void _onWorkerButtonPress() {
     setState(() {
       _bBossMode = false;
-      if (_bJobMenu && !_bWorkerDetailsAreFull) {
+      if (areDetailsFull()) {
+        _bJobMenu = true;
+      } else {
         _bJobMenu = false;
       }
+
       _tabIndicationPainterNoPageControllerListener.iPos = 0;
       _switchAnimController.forward();
     });
@@ -1763,7 +1962,9 @@ class _ProfilePageState extends State<ProfilePage>
     setState(() {
       _bBossMode = true;
       
-      if (_bJobMenu && !_bBossDetailsAreFull) {
+      if (areDetailsFull()) {
+        _bJobMenu = true;
+      } else {
         _bJobMenu = false;
       }
       _switchAnimController.reverse();
@@ -1772,6 +1973,102 @@ class _ProfilePageState extends State<ProfilePage>
     //_pageController?.animateToPage(1,
     //    duration: Duration(milliseconds: 500), curve: Curves.decelerate);
   }
+    
+  Widget _createAutoCompleteTextField(TextEditingController controller, String labeltext, {String jobId = ""}) {
+    
+    return Padding(padding: EdgeInsets.only(top: 10.0, bottom: 10.0, left: 25.0, right: 25.0), 
+    child: TypeAheadField(
+      direction: AxisDirection.up,
+      noItemsFoundBuilder: ((context) {return Container();}),//Text("לא נמצאו תוצאות", textAlign: TextAlign.start, textDirection: TextDirection.rtl,);}),
+      suggestionsBoxDecoration: SuggestionsBoxDecoration(
+                    hasScrollbar: true,
+                    borderRadius: BorderRadius.all(Radius.circular(5.0)),
+                    color: Colors.white54,
+                    constraints: BoxConstraints(maxHeight: 200, maxWidth: 400),
+                    
+                    
+      ),
+  textFieldConfiguration: TextFieldConfiguration(
+    textDirection: TextDirection.rtl,
+    textAlign: TextAlign.right,
+    controller: controller,
+    autofocus: true,
+    style: TextStyle(
+              fontFamily: "WorkSansSemiBold", fontSize: 16.0),
+    decoration: InputDecoration(
+      //contentPadding: EdgeInsets.only(top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
+      border: InputBorder.none,
+          focusedBorder : InputBorder.none,
+      hintStyle: TextStyle(
+              fontFamily: "WorkSansSemiBold", fontSize: 12.0),
+      labelText: labeltext,
+      
+      icon: Icon(
+            FontAwesomeIcons.mapMarker,
+            size: 22.0,
+            color: Colors.black87,
+          ),
+      hintText: labeltext
+    )
+  ),
+  suggestionsCallback: (pattern) async {
+    Location nearL = new Location(_currLocation.lat, _currLocation.lng);
+    List<String> places = [];
+    var res = await _placesAPI.queryAutocomplete(pattern, location: nearL, radius: 300000.0, language: "iw");
+    for (var i = 0; i < res.predictions.length; i++) {
+      places.add(res.predictions[i].description);
+      print("pattern $pattern, predictions ${res.predictions[i].description}");
+    }
+    return places;
+  },
+  itemBuilder: (context, suggestion) {
+    return ListTile(
+      // leading: Icon(Icons.shopping_cart),
+      title: Text(suggestion),
+      // subtitle: Text('\$${suggestion['price']}'),
+    );
+  },
+  onSuggestionSelected: (suggestion) {
+    setPlaceLatLng(suggestion, jobId: jobId);
+    setState((){
+      controller.text = suggestion;
+      });
+    
+    
+  },
+));
+  }
+
+
+
+
+  //   RenderBox renderBox = context.findRenderObject();
+  //   var size = renderBox.size;
+  //   var offset = renderBox.localToGlobal(Offset.zero);
+
+  //   return OverlayEntry(
+  //     builder: (context) => Positioned(
+  //       left: offset.dx,
+  //       top: offset.dy + size.height + 5.0,
+  //       width: size.width,
+  //       child: Material(
+  //         child: ListView(
+  //           padding: EdgeInsets.zero,
+  //           shrinkWrap: true,
+  //           children: <Widget>[
+  //             ListTile(
+  //               title: Text('Syria'),
+  //             ),
+  //             ListTile(
+  //               title: Text('Lebanon'),
+  //             )
+  //           ],
+  //         ),
+  //       ),
+  //     )
+  //   );
+  // }
+
 
   Widget _buildWorkerDetails1(BuildContext context) {
     return new Directionality(
@@ -1789,7 +2086,7 @@ class _ProfilePageState extends State<ProfilePage>
             child: SingleChildScrollView(
                 //width: MediaQuery.of(context).size.width * 5 / 6,
                 //height: MediaQuery.of(context).size.height * 2,
-                child: new Column(children: <Widget>[
+                child: new  Column(children: <Widget>[
               Padding(
                 padding: EdgeInsets.only(
                     top: 5.0, bottom: 5.0, left: 25.0, right: 25.0),
@@ -1812,30 +2109,11 @@ class _ProfilePageState extends State<ProfilePage>
               ),
               new Row(children: <Widget>[
                 new Flexible(
-                    child: createTextField("מקום", myFocusNodePlace,
-                        _controllerWorkerPlace, FontAwesomeIcons.mapMarker)),
-                new Flexible(
-                    child: Padding(
-                        padding: EdgeInsets.only(
-                            top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
-                        child: new SingleChildScrollView(
-                          child: new Theme(
-                              data: new ThemeData(
-                                fontFamily: "WorkSansSemiBold",
-                                canvasColor: Colors.white54, //my custom color
-                              ),
-                              child: new DropdownButton(
-                                iconSize: 30.0,
-                                items: _lPlacesWorkerDropDownList,
-                                onChanged: ((s) {
-                                  _controllerWorkerPlace.text = s;
-                                  _bWorkerIsUpdated = false;
-                                  setPlaceLatLng(s, false);
-                                }),
-                              )),
-                          scrollDirection: Axis.horizontal,
-                        )))
+                    // child: createTextField("מקום (הכנס 2 תווים ובחר מהרשימה)", myFocusNodePlace,
+                    //     _controllerWorkerPlace, FontAwesomeIcons.mapMarker),
+                        child: _createAutoCompleteTextField(_controllerWorkerPlace, "(מקום (הכנס 2 תווים ובחר מהרשימה)"))
               ]),
+              
               //))) : Container(),
               Container(
                 width: 250.0,
@@ -1982,13 +2260,183 @@ class _ProfilePageState extends State<ProfilePage>
     final RenderBox renderBoxRed = key.currentContext.findRenderObject();
     return (renderBoxRed.size);
   }
-
-  Widget addJobWidget(bool bIsEmpty) {
+  Widget addUpdateDetailsWidgetActionButton(bool bIsEmpty) {
     return new Column(children: [
       RawMaterialButton(
-        constraints: bIsEmpty
-            ? BoxConstraints.tight(Size(_widthSwitch / 4, _heightSwitch * 4))
-            : BoxConstraints.tight(Size(88.0, 36.0)),
+        constraints: //bIsEmpty ? 
+            BoxConstraints.loose(Size(_widthSwitch / 6, _heightSwitch)),
+            //: BoxConstraints.loose(Size(88.0, 36.0)),
+        fillColor: Colors.green[300],
+        splashColor: Colors.white,
+        child: new Container(
+          decoration: new BoxDecoration(
+            shape: BoxShape
+                .circle, // You can use like this way or like the below line
+            //borderRadius: new BorderRadius.circular(30.0),
+            color: Colors.green[300],
+          ),
+          child: new Icon(Icons.check, size: _widthSwitch / 10),
+        ),
+        onPressed: (() {
+          setState(() {
+            _updatingDetails();
+            _bJobMenu = true;
+            _bShrinkJobMenu =true;
+          });
+        }),
+        shape: new CircleBorder(),
+      ),
+      bIsEmpty
+          ? Text(
+              'עדכן פרטים',
+              textScaleFactor: 1.5,
+            )
+          : Text('עדכן פרטים',),
+    ]);
+    //return Container();
+  }
+  Widget addWorkerJobActionButton()
+  { 
+    return Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: Container(
+                                    
+                                    
+                                      // child: new Card(
+                                      //     elevation: 6.0,
+                                      //     color: Colors.white54,
+                                      //     shape: RoundedRectangleBorder(
+                                      //       borderRadius:
+                                      //           BorderRadius.circular(4.0),
+                                      //     ),
+                                          child: RawMaterialButton(
+                                            // constraints:  BoxConstraints.loose(Size(_widthSwitch, _heightSwitch)),
+            // : BoxConstraints.loose(Size(88.0, 36.0)),
+      fillColor: Colors.blue[300],
+      splashColor: Colors.white,
+      //shape: new CircleBorder(),
+      child: new Container(
+        width : _widthSwitch / 8,
+        height : _widthSwitch / 8,
+        decoration: new BoxDecoration(
+         shape: BoxShape.circle,
+         //borderRadius: new BorderRadius.circular(30.0),
+           // You can use like this way or like the below line
+          //borderRadius: new BorderRadius.circular(30.0),
+          color: Colors.blue[300],
+        ),
+        child: new Icon(
+            _bMapView ?
+                FontAwesomeIcons.list : FontAwesomeIcons.mapMarked,
+              size: _widthSwitch / 12,
+              ),
+      ),
+      onPressed: ((){setState(() {
+            _bMapView = !_bMapView;
+          });}),
+          shape: CircleBorder()
+    )));
+    //return Container();
+  }
+  Widget addJobWidgetActionButton() {
+    // if (_idJobIsUpdated != "-1" && _idJobIsUpdated != "") {
+      return addJobWidgetWorkersActionButton();
+    // } else {
+    //   return addJobWidgetAddActionButton(false, _lJobs.length == 0);
+    // }
+    //return Container();
+  }
+  Widget addJobWidgetBossShrinkActionButton(JobsContext job, bool bShrink) {
+    return new Column(children: [
+                RawMaterialButton(
+                  fillColor: job.details.bDetailsUpdated ? Colors.blue[300] : Colors.grey[500],
+                  splashColor: Colors.white,
+                  child: new Container(
+                    decoration: new BoxDecoration(
+                      shape: BoxShape
+                          .circle, // You can use like this way or like the below line
+                      //borderRadius: new BorderRadius.circular(30.0),
+                      color: job.details.bDetailsUpdated ? Colors.blue[300] : Colors.grey[500],
+                    ),
+                    child: new Icon(bShrink ?
+                        FontAwesomeIcons.pencilAlt : FontAwesomeIcons.users),
+                  ),
+                  onPressed: (() {
+                    WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
+                    if (bShrink) {
+                      _updatingDetails();
+                      setState(() {
+                        _bUpdatingDetails = true;
+                      });
+                    } else {
+                      print("index - $_iJobIsUpdated");
+                      
+                    }
+                    _bShrinkJobMenu = !_bShrinkJobMenu;
+                    _currentJobId =
+                        job.details._jobId;
+                    _services
+                        .queryJob(
+                            job.details._jobId)
+                        .then((res) {
+                      if ((res["success"] ==
+                              "true") ||
+                          (res["success"] ==
+                              true)) {
+                        setState(() {
+                         
+                              _bUpdatingDetails =
+                            false;
+                        });
+                      }
+                    });
+                    
+                  }),
+                  shape: new CircleBorder(),
+                ),
+                Text(bShrink
+                    ? 'עריכת עבודה'
+                    : 'הצג עובדים'),
+              ]);
+  }
+  Widget addJobWidgetWorkersActionButton() {
+    var len = _lJobs?.length ?? 0;
+    var job = new JobsContext(JobsDetails());
+    bool bisEmpty = (len == 0);
+    if (!bisEmpty) {
+    var index = _lJobs.indexWhere((element) => (element.details.jobId == _idJobIsUpdated));
+      if (index == -1) {
+        print("addJobWidgetWorkersActionButton, error - job id $_idJobIsUpdated not found");
+        job = _lJobs[0];
+        _iJobIsUpdated = 0;
+      } else {
+        job = _lJobs[index]; 
+      }
+      _idJobIsUpdated = job.details.jobId;
+    } 
+    bool bShrink = _bShrinkJobMenu && job.details.bDetailsUpdated;
+    if (bShrink) {
+      WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
+    }
+    Widget w = bisEmpty ?  addJobWidgetAddActionButton(false, true)  : !job.details.bDetailsUpdated ? addUpdateDetailsWidgetActionButton(bisEmpty) :
+    Container(
+    child: (_lJobs.last.details.jobId == "-1") ? Center(child: addJobWidgetBossShrinkActionButton(job, bShrink)) : new Row(
+        mainAxisAlignment:
+            MainAxisAlignment.spaceEvenly,
+        children: <Widget>[
+          //(_lJobs.last.details.jobId == "-1") ? Spacer() : Spacer(flex: 0),
+              addJobWidgetBossShrinkActionButton(job, bShrink),
+          (_lJobs.last.details.jobId == "-1")  ? SizedBox() : addJobWidgetAddActionButton(false, _lJobs.length == 0)]));
+    return w;
+    // return Container();
+  }
+  Widget addJobWidgetAddActionButton(bool bIsUpdated, bool bIsEmpty) {
+    // return Container();
+    return new Column(children: [
+      RawMaterialButton(
+        // constraints: bIsEmpty
+        //     ? BoxConstraints.loose(Size(_widthSwitch / 4, _heightSwitch ))
+        //     : BoxConstraints.loose(Size(88.0, 36.0)),
         fillColor: Colors.green[300],
         splashColor: Colors.white,
         child: new Container(
@@ -2006,7 +2454,11 @@ class _ProfilePageState extends State<ProfilePage>
           setState(() {
             _lJobs.add(new JobsContext(new JobsDetails()));
             _cs.setPage(_cs.getNumberOfPages() + 1);
+            _bShrinkJobMenu = false;
+            _iJobIsUpdated+=1;
           });
+          var a = _cs.getNumberOfPages();
+          _cs.setPage(a);
         }),
         shape: new CircleBorder(),
       ),
@@ -2018,8 +2470,24 @@ class _ProfilePageState extends State<ProfilePage>
           : Text('הוסף עבודה'),
     ]);
   }
-
   Widget jobBossPage(BuildContext context, int index) {
+    // w = 
+    // (_lJobs.length == 0)
+    //                         ? createTitle("אין עבודות")
+    //                         : createTitle(
+    //                             "עבודה ${index + 1} מתוך ${_lJobs.length}")
+    // if  (_lJobs.length != 0) {
+    //   var w = createTitle("עבודה ${index + 1} מתוך ${_lJobs.length}");
+      
+    // }
+    //return Container();
+    //return jobBossCard(context, index);
+    return new Stack( children: <Widget>[
+       jobBossCard(context, index),
+      Positioned(child: removeWorkButton(index, false), top: 0.0, left : 0.0),
+    ]);
+  }
+  Widget jobBossCard(BuildContext context, int index) {
     //bool bIsEmptyEntry = index==_lJobs.length - 1;
     bool bIsEmptyEntry = _lJobs.length == 0;
     JobsContext job;
@@ -2032,38 +2500,54 @@ class _ProfilePageState extends State<ProfilePage>
       //   jobPlaceController.text = (jd._place!=null?jd._place.toString():"");
       // }
       job.ui.conPlace.addListener(() {
-        _textForAutoCompleteChanged(job.ui.conPlace, _lJobsDropDownList);
-        setState(() {
+        _textForAutoCompleteChanged(job.ui.conPlace.text, _lJobsDropDownList);
+       
           _iJobIsUpdated = index;
           _idJobIsUpdated = job.details._jobId;
-          _lJobs[index].details._place = job.ui.conPlace.text;
-        });
+          if (_lJobs[index].details._place != job.ui.conPlace.text)
+          { 
+             setState(() {
+            _lJobs[index].details.bDetailsUpdated = false;
+            _lJobs[index].details._place = job.ui.conPlace.text;
+            });
+          }
+          
+        
       });
       job.ui.conDiscription.addListener(() {
-        setState(() {
-          _lJobs[index].details._discription = job.ui.conDiscription.text;
+        
+          
           _idJobIsUpdated = job.details._jobId;
           _iJobIsUpdated = index;
-        });
+          if (_lJobs[index].details._discription != job.ui.conDiscription.text) {
+            setState(() {
+            _lJobs[index].details.bDetailsUpdated = false;
+            _lJobs[index].details._discription = job.ui.conDiscription.text;
+          });
+          }
+          
+           
+        
       });
       job.ui.conWage.addListener(() {
-        setState(() {
-          _lJobs[index].details._wage = job.ui.conWage.text == ""
-              ? 29.12
-              : double.parse(job.ui.conWage.text);
+       
+          
           _idJobIsUpdated = job.details._jobId;
           _iJobIsUpdated = index;
-        });
+          if (job.ui.conWage.text == "") {
+              job.ui.conWage.text = _lJobs[index].details._wage.toString();
+          }
+          double val = double.parse(job.ui.conWage.text);
+          _lJobs[index].details?._wage = _lJobs[index].details?._wage ?? 29.12;
+          if (val != _lJobs[index].details?._wage){
+             setState(() {
+              job.ui.conWage.text =  _lJobs[index].details._wage.toString();
+            _lJobs[index].details.bDetailsUpdated = false;
+            });
+          }
+        
       });
-      job.ui.connWorkers.addListener(() {
-        setState(() {
-          _lJobs[index].details.nWorkers = job.ui.connWorkers.text == ""
-              ? 1
-              : int.parse(job.ui.connWorkers.text);
-          _idJobIsUpdated = job.details._jobId;
-          _iJobIsUpdated = index;
-        });
-      });
+      
       job.ui.connOccupationList.addListener(() {
         setState(() {
           _lJobs[index].details._lOccupationFieldListString = [];
@@ -2073,6 +2557,7 @@ class _ProfilePageState extends State<ProfilePage>
               .add(job.ui.connOccupationList.text);
           _idJobIsUpdated = job.details._jobId;
           _iJobIsUpdated = index;
+           _lJobs[index].details.bDetailsUpdated = false;
         });
       });
     }
@@ -2105,8 +2590,8 @@ class _ProfilePageState extends State<ProfilePage>
             _jobPlaceText = s;
           });
         }));
-    _lKeyForJobDiscription[index] =
-        new GlobalKey(debugLabel: "keyForJobDiscription_$index");
+
+    bool bShrink = _bShrinkJobMenu && job.details.bDetailsUpdated;
     return new ConstrainedBox(
         constraints: const BoxConstraints.expand(),
         child: new SingleChildScrollView(
@@ -2119,17 +2604,24 @@ class _ProfilePageState extends State<ProfilePage>
                     //child: new SingleChildScrollView (
                     child: new Stack(children: [
                       Column(children: <Widget>[
-                        _lJobs.length == 0
-                            ? createTitle("אין עבודות")
-                            : createTitle(
-                                "עבודה ${index + 1} מתוך ${_lJobs.length}"),
+                        // _lJobs.length == 0
+                        //     ? createTitle("אין עבודות")
+                        //     : createTitle("עבודה ${index + 1} מתוך ${_lJobs.length}"),
                         AnimatedContainer(
                             duration: new Duration(milliseconds: 500),
                             curve: Curves.elasticInOut,
-                            height: _bShrinkJobMenu
+                            height: bShrink
                                 ? MediaQuery.of(context).size.height * 0.12
                                 : MediaQuery.of(context).size.height * 0.55,
-                            child: Card(
+                            child: bShrink
+                                ?  Card(
+                                elevation: 2.0,
+                                color: Colors.white54,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: createTitle(job.details._discription)) :
+                                 Card(
                                 elevation: 2.0,
                                 color: Colors.white54,
                                 shape: RoundedRectangleBorder(
@@ -2139,6 +2631,7 @@ class _ProfilePageState extends State<ProfilePage>
                                     child: bIsEmptyEntry
                                         ? new Container()
                                         : new Column(children: [
+                                          
                                             Container(
                                               width: 250.0,
                                               height: 1.0,
@@ -2159,53 +2652,55 @@ class _ProfilePageState extends State<ProfilePage>
                                               color: Colors.grey[400],
                                             ),
                                             new Row(children: <Widget>[
-                                              new Flexible(
-                                                  child: createTextField(
-                                                      "מקום",
-                                                      job.ui.fnPlace,
-                                                      job.ui.conPlace,
-                                                      FontAwesomeIcons
-                                                          .mapMarker)),
-                                              new Flexible(
-                                                  child: Padding(
-                                                      padding: EdgeInsets.only(
-                                                          top: 10.0,
-                                                          bottom: 10.0),
-                                                      child:
-                                                          new SingleChildScrollView(
-                                                        child: new Theme(
-                                                            data: new ThemeData(
-                                                              fontFamily:
-                                                                  "WorkSansSemiBold",
-                                                              canvasColor: Colors
-                                                                  .white54, //my custom color
-                                                            ),
-                                                            child:
-                                                                new DropdownButton(
-                                                              iconSize: 30.0,
-                                                              items:
-                                                                  _lJobsDropDownList,
-                                                              onChanged: ((s) {
-                                                                setState(() {
-                                                                  job
-                                                                      .ui
-                                                                      .conPlace
-                                                                      .text = s;
-                                                                  setPlaceLatLng(
-                                                                      s, true,
-                                                                      jobIndex:
-                                                                          index);
-                                                                  _idJobIsUpdated =
-                                                                      job.details
-                                                                          ._jobId;
-                                                                  _iJobIsUpdated =
-                                                                      index;
-                                                                });
-                                                              }),
-                                                            )),
-                                                        scrollDirection:
-                                                            Axis.horizontal,
-                                                      )))
+                                              new Flexible(child: 
+                                                _createAutoCompleteTextField(job.ui.conPlace, "(מקום (הכנס 2 תווים ובחר מהרשימה)", jobId: job.details.jobId))
+                  
+                                                  // child: createTextField(
+                                                  //     "מקום",
+                                                  //     job.ui.fnPlace,
+                                                  //     job.ui.conPlace,
+                                                  //     FontAwesomeIcons
+                                                  //         .mapMarker)),
+                                              // new Flexible(
+                                              //     child: Padding(
+                                              //         padding: EdgeInsets.only(
+                                              //             top: 10.0,
+                                              //             bottom: 10.0),
+                                              //         child:
+                                              //             new SingleChildScrollView(
+                                              //           child: new Theme(
+                                              //               data: new ThemeData(
+                                              //                 fontFamily:
+                                              //                     "WorkSansSemiBold",
+                                              //                 canvasColor: Colors
+                                              //                     .white54, //my custom color
+                                              //               ),
+                                              //               child:
+                                              //                   new DropdownButton(
+                                              //                 iconSize: 30.0,
+                                              //                 items:
+                                              //                     _lJobsDropDownList,
+                                              //                 onChanged: ((s) {
+                                              //                   setState(() {
+                                              //                     job
+                                              //                         .ui
+                                              //                         .conPlace
+                                              //                         .text = s;
+                                              //                     setPlaceLatLng(
+                                              //                         s,
+                                              //                         jobIndex:
+                                              //                             index);
+                                              //                     _idJobIsUpdated =
+                                              //                         job.details
+                                              //                             ._jobId;
+                                              //                     _iJobIsUpdated =
+                                              //                         index;
+                                              //                   });
+                                              //                 }),
+                                              //               )),
+                                              //           scrollDirection:
+                                              //               Axis.horizontal,
+                                              //         )))
                                             ]),
                                             Container(
                                               width: 250.0,
@@ -2232,18 +2727,19 @@ class _ProfilePageState extends State<ProfilePage>
                                                     _dropDownButtonOccupation,
                                               ),
                                             ),
-                                            createTextField(
-                                                "מספר עובדים",
-                                                job.ui.fnnWorkers,
-                                                job.ui.connWorkers,
-                                                FontAwesomeIcons.peopleCarry,
-                                                keyboardType:
-                                                    TextInputType.number,
-                                                validator:
-                                                    new BlacklistingTextInputFormatter(
-                                                        new RegExp(
-                                                            '[\\.|\\,|\\-|\\ ]'))),
-                                          ])))),
+                                            // createTextField(
+                                            //     "מספר עובדים",
+                                            //     job.ui.fnnWorkers,
+                                            //     job.ui.connWorkers,
+                                            //     FontAwesomeIcons.peopleCarry,
+                                            //     keyboardType:
+                                            //         TextInputType.number,
+                                            //     validator:
+                                            //         new BlacklistingTextInputFormatter(
+                                            //             new RegExp(
+                                            //                 '[\\.|\\,|\\-|\\ ]'))),
+                                          
+                      ])))),
                         _bShrinkJobMenu
                             ? _buildBossJobsLivePage(
                                 context, job.details._jobId)
@@ -2252,148 +2748,81 @@ class _ProfilePageState extends State<ProfilePage>
                           height: 50.0,
                         ),
                       ]),
-
-                      Positioned(
-                          bottom: 0.0,
-                          left: 0.0,
-                          right: 0.0,
-                          child: bIsEmptyEntry
-                              ? addJobWidget(bIsEmptyEntry)
-                              : Container(
-                                  child: new Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceEvenly,
-                                      children: <Widget>[
-                                      addJobWidget(bIsEmptyEntry),
-                                      bIsEmptyEntry
-                                          ? Container()
-                                          : Column(children: [
-                                              RawMaterialButton(
-                                                fillColor: Colors.blue[300],
-                                                splashColor: Colors.white,
-                                                child: new Container(
-                                                  decoration: new BoxDecoration(
-                                                    shape: BoxShape
-                                                        .circle, // You can use like this way or like the below line
-                                                    //borderRadius: new BorderRadius.circular(30.0),
-                                                    color: Colors.blue[300],
-                                                  ),
-                                                  child: new Icon(
-                                                      FontAwesomeIcons.users),
-                                                ),
-                                                onPressed: (() {
-                                                  if (_bShrinkJobMenu) {
-                                                    setState(() {
-                                                      _bShrinkJobMenu = false;
-                                                    });
-                                                  } else {
-                                                    print("index - $index");
-                                                    _currentJobId =
-                                                        job.details._jobId;
-                                                    setState(() {
-                                                      _bUpdatingDetails = true;
-                                                    });
-
-                                                    _services
-                                                        .queryJob(
-                                                            job.details._jobId)
-                                                        .then((res) {
-                                                      if ((res["success"] ==
-                                                              "true") ||
-                                                          (res["success"] ==
-                                                              true)) {
-                                                        //Future.delayed(new Duration(seconds:4), () =>
-                                                        //Navigator.push(
-                                                        //  context,
-                                                        //  MaterialPageRoute(builder: (context) => _buildBossJobsLivePage(context, _currentJobId)),
-                                                        //);
-                                                        //);
-                                                        setState(() {
-                                                          _bShrinkJobMenu =
-                                                              true;
-                                                        });
-                                                      }
-                                                      setState(() {
-                                                        _bUpdatingDetails =
-                                                            false;
-                                                      });
-                                                    });
-                                                  }
-                                                }),
-                                                shape: new CircleBorder(),
-                                              ),
-                                              Text(_bShrinkJobMenu
-                                                  ? 'פרטי עבודה'
-                                                  : 'עובדים'),
-                                            ]),
-                                      bIsEmptyEntry
-                                          ? Container()
-                                          : Column(children: [
-                                              RawMaterialButton(
-                                                fillColor:
-                                                    _lJobsIDsMarkedForDeletion
-                                                            .contains(
-                                                                _lJobs[index]
-                                                                    .details
-                                                                    ._jobId)
-                                                        ? Colors.red[300]
-                                                        : Colors.grey[300],
-                                                splashColor: Colors.white,
-                                                child: new Container(
-                                                  decoration: new BoxDecoration(
-                                                    shape: BoxShape
-                                                        .circle, // You can use like this way or like the below line
-                                                    //borderRadius: new BorderRadius.circular(30.0),
-                                                    color:
-                                                        _lJobsIDsMarkedForDeletion
-                                                                .contains(
-                                                                    _lJobs[index]
-                                                                        .details
-                                                                        ._jobId)
-                                                            ? Colors.red[300]
-                                                            : Colors.grey[300],
-                                                  ),
-                                                  child: new Icon(
-                                                      FontAwesomeIcons
-                                                          .trashAlt),
-                                                ),
-                                                onPressed: (() {
-                                                  setState(() {
-                                                    if (_lJobsIDsMarkedForDeletion
-                                                        .contains(_lJobs[index]
-                                                            .details
-                                                            ._jobId)) {
-                                                      _lJobsIDsMarkedForDeletion
-                                                          .remove(_lJobs[index]
-                                                              .details
-                                                              ._jobId);
-                                                    } else {
-                                                      _lJobsIDsMarkedForDeletion
-                                                          .add(_lJobs[index]
-                                                              .details
-                                                              ._jobId);
-                                                    }
-                                                    //_lJobs.removeAt(index);
-                                                    _idJobIsUpdated =
-                                                        _lJobs[index]
-                                                            .details
-                                                            ._jobId;
-                                                    _iJobIsUpdated = index;
-                                                  });
-                                                }),
-                                                shape: new CircleBorder(),
-                                              ),
-                                              bIsEmptyEntry
-                                                  ? Container()
-                                                  : Text('מחק עבודה'),
-                                            ])
-                                    ]))), //),
+                      //),
                     ]) //)
                     ))));
   }
-
+  Widget removeWorkButton(int index, bool bIsEmptyEntry) {
+    if (_lJobs.length == 0)
+      return Container();
+    return new Column(children: [
+      RawMaterialButton(
+        fillColor:
+            _lJobsIDsMarkedForDeletion
+                    .contains(
+                        _lJobs[index]
+                            .details
+                            ._jobId)
+                ? Colors.red[300]
+                : Colors.grey[300],
+        splashColor: Colors.white,
+        child: new Container(
+          decoration: new BoxDecoration(
+            shape: BoxShape
+                .circle, // You can use like this way or like the below line
+            //borderRadius: new BorderRadius.circular(30.0),
+            color:
+                _lJobsIDsMarkedForDeletion
+                        .contains(
+                            _lJobs[index]
+                                .details
+                                ._jobId)
+                    ? Colors.red[300]
+                    : Colors.grey[300],
+          ),
+          child: new Icon(Icons.cancel),
+              // FontAwesomeIcons
+              //     .trashAlt),
+        ),
+        onPressed: (() {
+          if ((_idJobIsUpdated == "-1" || _idJobIsUpdated == "") && !_lJobs[index].details.bDetailsUpdated) { // this means this is a new job not yet updated to server
+              setState(() {
+                _lJobs.removeAt(index);
+              });
+          } else {
+          setState(() {
+            if (_lJobsIDsMarkedForDeletion
+                .contains(_lJobs[index]
+                    .details
+                    ._jobId)) {
+              _lJobsIDsMarkedForDeletion
+                  .remove(_lJobs[index]
+                      .details
+                      ._jobId);
+            } else {
+              _lJobsIDsMarkedForDeletion
+                  .add(_lJobs[index]
+                      .details
+                      ._jobId);
+              
+            }
+            //_lJobs.removeAt(index);
+            _idJobIsUpdated =
+                _lJobs[index]
+                    .details
+                    ._jobId;
+            _iJobIsUpdated = index;
+            _updatingDetails();
+          });
+        }}),
+        shape: new CircleBorder(),
+      ),
+      // bIsEmptyEntry
+      //     ? Container()
+      //     : Text('מחק עבודה'),
+    ]);
+  }
   Widget _buildJobsCarousel(BuildContext context, List<Widget> jbl) {
-    _lKeyForJobDiscription = new List<GlobalKey>(_lJobs.length + 1);
     if (_lJobs.length == 0) {
       jbl.add(jobBossPage(context, 0));
     } else {
@@ -2513,14 +2942,14 @@ class _ProfilePageState extends State<ProfilePage>
     ]);
   }
 
-  Widget createSortLine(Widget sortText, VoidCallback sortTextCallback,  VoidCallback sortArrowCallback, bool bArrowUp, double w, double h)
+  Widget createSortLine(Widget sortText, VoidCallback sortTextCallback,  VoidCallback sortArrowCallback, bool bArrowUp, double _w, double _h)
   {
     return new Align(
                                   alignment: Alignment.center,
                                   child: Container(
                                       //width: (l[0].left - l[0].right)*2,
-                                      width: w ,
-                                      height: h,
+                                      width: _w ,
+                                      height: _h,
                                       child: new Card(
                                           elevation: 6.0,
                                           color: ZarizTheme.Colors.zarizGradientEnd2,
@@ -2537,8 +2966,8 @@ class _ProfilePageState extends State<ProfilePage>
                                                 new Flexible(
                                                     child: Container(
                                       //width: (l[0].left - l[0].right)*2,
-                                      width: w ,
-                                      height: h,
+                                      width: _w ,
+                                      height: _h,
                                       child: new InkWell(
                                                         child: Align(
                                                             alignment: Alignment.center,
@@ -2547,8 +2976,8 @@ class _ProfilePageState extends State<ProfilePage>
                                                         ))),
                                                 new Flexible(
                                                   child: Container(
-                                      width: w * 0.1 ,
-                                      height: h,
+                                      width: _w * 0.1 ,
+                                      height: _h,
                                                     child: IconButton(
                                                   icon: Icon(
                                                      
@@ -2598,10 +3027,10 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget buildJobsAsWorkerList(List<JobDetailsForWorker> jobsToShow, Widget sortText) 
   {
-    var w = MediaQuery.of(context).size.width;
-    var h = MediaQuery.of(context).size.height;
+    _w = MediaQuery.of(context).size.width;
+    _h = MediaQuery.of(context).size.height;
     return new Column(children: <Widget>[
-                                 createSortLine(sortText, sortJobsForWorkerTextCallback, sortJobsForWorkerArrowCallback, _bSortAsscendingJobsForWorker, w * 0.8, h / 24),
+                                 createSortLine(sortText, sortJobsForWorkerTextCallback, sortJobsForWorkerArrowCallback, _bSortAsscendingJobsForWorker, _w * 0.8, _h / 24),
                                               
                               
                               for (var item in jobsToShow)
@@ -2640,7 +3069,7 @@ class _ProfilePageState extends State<ProfilePage>
                                               })
                                         ]))]);
   }
-  String _expandOnlyJobId = "";
+
   void onTapInfoWorker(String jobId) {
     setState(() {
       for (var j in _jobDetailsForWorkerList) {
@@ -2731,9 +3160,11 @@ class _ProfilePageState extends State<ProfilePage>
                 .jd._wage);
       });
     }
-    var w = MediaQuery.of(context).size.width;
-    var h = MediaQuery.of(context).size.height;
-
+    _w = MediaQuery.of(context).size.width;
+    _h = MediaQuery.of(context).size.height;
+    if (_bJobMenu && !_bBossMode) {
+      WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
+    }
     Widget sortText = createTitleNoPadding(_sSortTypes[_sortTypeJobsForWorker],
         textSize: 10.0, bCenter: true, color:  ZarizTheme.Colors.zarizGradientStart2);
 
@@ -2752,41 +3183,8 @@ class _ProfilePageState extends State<ProfilePage>
                             decoration: decorationBossWorker(context, true),
                             padding: EdgeInsets.only(top: 5.0),
                             child: new Column(children: <Widget>[
-                                 _bMapView ? Container(height: h * 0.6, width: w, child: buildMapWidgetJobsForWorker(jobsToShow, _workerDetails,_currLocation, onTapInfoWorker)) : buildJobsAsWorkerList(jobsToShow, sortText),
-                                        Align(
-                                  alignment: Alignment.center,
-                                  child: Container(
-                                    
-                                      height: h / 15,
-                                      // child: new Card(
-                                      //     elevation: 6.0,
-                                      //     color: Colors.white54,
-                                      //     shape: RoundedRectangleBorder(
-                                      //       borderRadius:
-                                      //           BorderRadius.circular(4.0),
-                                      //     ),
-                                          child: RawMaterialButton(
-                                                fillColor: Colors.blue[300],
-                                                splashColor: Colors.white,
-                                                child: new Container(
-                                                  decoration: new BoxDecoration(
-                                                    shape: BoxShape
-                                                        .circle, // You can use like this way or like the below line
-                                                    //borderRadius: new BorderRadius.circular(30.0),
-                                                    color: Colors.blue[300],
-                                                  ),
-                                                  child: new Icon(
-                                                      _bMapView ?
-                                                          FontAwesomeIcons.list : FontAwesomeIcons.mapMarked,
-                                                        size: 32.0,
-                                                       ),
-                                                ),
-                                                onPressed: ((){setState(() {
-                                                      _bMapView = !_bMapView;
-                                                    });}),
-                                                shape: new CircleBorder(),
-                                                
-                                              ))),
+                                 _bMapView ? Container(height: _h * 0.6, width: _w, child: buildMapWidgetJobsForWorker(jobsToShow, _workerDetails,_currLocation, onTapInfoWorker)) : buildJobsAsWorkerList(jobsToShow, sortText),
+                                        
                             ])))))
                           );
   }
@@ -2799,11 +3197,12 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildBossDetails1(BuildContext context) {
     return (new Directionality(
         textDirection: TextDirection.rtl,
-        child: new AnimatedContainer(
+        child:  Stack(children: [new AnimatedContainer(
             duration: new Duration(milliseconds: 500),
             decoration: decorationBossWorker(context, true),
             padding: EdgeInsets.only(top: 23.0),
-            child: Card(
+            child:
+            Card(
                 elevation: 2.0,
                 color: Colors.white54,
                 shape: RoundedRectangleBorder(
@@ -2843,72 +3242,83 @@ class _ProfilePageState extends State<ProfilePage>
                         _controllerBossBuisnessName,
                         FontAwesomeIcons.userAlt),
                   ),
-                  new Row(children: <Widget>[
-                    new Flexible(
-                        child: createTextField("מקום", myFocusNodeBossPlace,
-                            _controllerBossPlace, FontAwesomeIcons.mapMarker)),
-                    new Flexible(
-                        child: Padding(
-                            padding: EdgeInsets.only(
-                                top: 10.0,
-                                bottom: 10.0,
-                                left: 25.0,
-                                right: 25.0),
-                            child: new SingleChildScrollView(
-                              child: new Theme(
-                                  data: new ThemeData(
-                                    fontFamily: "WorkSansSemiBold",
-                                    canvasColor:
-                                        Colors.white54, //my custom color
-                                  ),
-                                  child: new DropdownButton(
-                                    iconSize: 30.0,
-                                    items: _lPlacesBossDropDownList,
-                                    onChanged: ((s) {
-                                      _controllerBossPlace.text = s;
-                                      _bWorkerIsUpdated = false;
-                                      setPlaceLatLng(s, true);
-                                    }),
-                                  )),
-                              scrollDirection: Axis.horizontal,
-                            )))
-                  ]),
                   Container(
                     width: 250.0,
                     height: 1.0,
                     color: Colors.grey[400],
                   ),
-                ]))))));
+                  _createAutoCompleteTextField(_controllerBossPlace, "(מקום (הכנס 2 תווים ובחר מהרשימה)"),
+                  // new Row(children: <Widget>[
+                  //   new Flexible(
+                  //       child: createTextField("מקום", myFocusNodeBossPlace,
+                  //           _controllerBossPlace, FontAwesomeIcons.mapMarker)),
+                  //   new Flexible(
+                  //       child: Padding(
+                  //           padding: EdgeInsets.only(
+                  //               top: 10.0,
+                  //               bottom: 10.0,
+                  //               left: 25.0,
+                  //               right: 25.0),
+                  //           child: new SingleChildScrollView(
+                  //             child: new Theme(
+                  //                 data: new ThemeData(
+                  //                   fontFamily: "WorkSansSemiBold",
+                  //                   canvasColor:
+                  //                       Colors.white54, //my custom color
+                  //                 ),
+                  //                 child: new DropdownButton(
+                  //                   iconSize: 30.0,
+                  //                   items: _lPlacesBossDropDownList,
+                  //                   onChanged: ((s) {
+                  //                     _controllerBossPlace.text = s;
+                  //                     _bWorkerIsUpdated = false;
+                  //                     setPlaceLatLng(s);
+                  //                   }),
+                  //                 )),
+                  //             scrollDirection: Axis.horizontal,
+                  //           )))
+                  // ]),
+                  Container(
+                    width: 250.0,
+                    height: 1.0,
+                    color: Colors.grey[400],
+                  )
+                ])))),])));
+        
   }
 
   Widget _buildBossJobsLivePage(BuildContext context, String jobID) {
+
     JobsContext job;
+    if (jobID == "-1")
+      return Container();
     _lJobs.forEach((j) {
       if (j.details._jobId == jobID) {
         job = j;
       }
     });
+    var len = job?.lWorkersNotified?.length ?? 0;
     print(
-        "_buildBossJobsLivePage, !!!!Shrink job ${_bShrinkJobMenu} job.lWorkersNotified.length ${job.lWorkersNotified.length} for ${jobID}");
-    if (job == null || job.lWorkersNotified == [])
+        "_buildBossJobsLivePage, !!!!Shrink job $_bShrinkJobMenu job.lWorkersNotified.length $len for $jobID");
+    if (job == null || (job?.lWorkersNotified ?? []) == [])
       return new Directionality(
           textDirection: TextDirection.rtl,
           child: createTitle("לא נמצאו עובדים"));
     // remove declined workers
     List<WorkerDetails> lWorkersDeclined = [];
-    job.lWorkersResponded.forEach((w) {
-      job.lWorkersHired.firstWhere((wHired) => wHired._userID == w._userID,
+    job.lWorkersResponded.forEach((_w) {
+      job.lWorkersHired.firstWhere((wHired) => wHired._userID == _w._userID,
           orElse: (() {
-        job.lWorkersAuthorized.firstWhere((wAuth) => wAuth._userID == w._userID,
+        job.lWorkersAuthorized.firstWhere((wAuth) => wAuth._userID == _w._userID,
             orElse: (() {
-          lWorkersDeclined.add(w);
+          lWorkersDeclined.add(_w);
         }));
       }));
     });
     List<WorkerDetails> lWorkersToShow = new List.from(job.lWorkersNotified);
-    lWorkersDeclined.forEach((w) {
+    lWorkersDeclined.forEach((_w) {
       try {
-        var oldVal = lWorkersToShow.firstWhere((a) => a._userID == w._userID);
+        var oldVal = lWorkersToShow.firstWhere((a) => a._userID == _w._userID);
         lWorkersToShow.remove(oldVal);
       } catch (e) {}
     });
@@ -2968,8 +3378,8 @@ class _ProfilePageState extends State<ProfilePage>
       });
     }
 
-    var w = MediaQuery.of(context).size.width;
-    var h = MediaQuery.of(context).size.height;
+    var _w = MediaQuery.of(context).size.width;
+    var _h = MediaQuery.of(context).size.height;
 
     Widget sortText = createTitleNoPadding(_sSortTypes[_sortTypeWorkersForJob],
         textSize: 10.0, bCenter: true, color:  ZarizTheme.Colors.zarizGradientStart2);
@@ -2977,7 +3387,7 @@ class _ProfilePageState extends State<ProfilePage>
     return new Directionality(
       textDirection: TextDirection.rtl,
       child: new Column(children: <Widget>[
-        createSortLine(sortText, sortWorkersForJobTextCallback, sortWorkersForJobArrowCallback, _bSortAsscendingWorkersForJob, w * 0.8, h / 24),
+        createSortLine(sortText, sortWorkersForJobTextCallback, sortWorkersForJobArrowCallback, _bSortAsscendingWorkersForJob, _w * 0.8, _h / 24),
         SingleChildScrollView(
             child: new ListView.builder(
                 shrinkWrap: true,
@@ -2986,29 +3396,29 @@ class _ProfilePageState extends State<ProfilePage>
                 itemCount: lWorkersToShow.length,
                 itemBuilder: (BuildContext context, int index) {
                   bool bNotified = false;
-                  for (var w in job.lWorkersNotified) {
-                    if (lWorkersToShow[index]._userID == w._userID) {
+                  for (var _w in job.lWorkersNotified) {
+                    if (lWorkersToShow[index]._userID == _w._userID) {
                       bNotified = true;
                       break;
                     }
                   }
                   bool bResponded = false;
-                  for (var w in job.lWorkersResponded) {
-                    if (lWorkersToShow[index]._userID == w._userID) {
+                  for (var _w in job.lWorkersResponded) {
+                    if (lWorkersToShow[index]._userID == _w._userID) {
                       bResponded = true;
                       break;
                     }
                   }
                   bool bAuthorized = false;
-                  for (var w in job.lWorkersAuthorized) {
-                    if (lWorkersToShow[index]._userID == w._userID) {
+                  for (var _w in job.lWorkersAuthorized) {
+                    if (lWorkersToShow[index]._userID == _w._userID) {
                       bAuthorized = true;
                       break;
                     }
                   }
                   bool bHired = false;
-                  for (var w in job.lWorkersHired) {
-                    if (lWorkersToShow[index]._userID == w._userID) {
+                  for (var _w in job.lWorkersHired) {
+                    if (lWorkersToShow[index]._userID == _w._userID) {
                       bHired = true;
                       break;
                     }

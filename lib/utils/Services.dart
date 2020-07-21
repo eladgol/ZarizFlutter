@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 
 
-const sDefaultIP = "192.168.1.13";//"https://zariz-204206.appspot.com/";
+const sDefaultIP =  "192.168.1.13"; //"192.168.43.14";//// "https://zariz-204206.appspot.com/";
 const sDefaultPORT = 8080;//443;
 
 typedef Future<bool> HttpAuthenticationCallback(
@@ -19,8 +19,8 @@ class Services {
   int port = sDefaultPORT;
   Services(){
     try {
-      var __ip = Singleton().persistentState.getString("IP");
-      var __port = Singleton().persistentState.getString("port");
+      var __ip = Singleton().persistentState?.getString("IP") ?? null;
+      var __port = Singleton().persistentState?.getString("port") ?? null;
       if (__ip != null && __port != null){
         setIP(__ip, int.parse(__port));
         ip = __ip;
@@ -330,14 +330,39 @@ class Services {
   Future<Map<String, dynamic>>  postServer(relativeUrl, bodyMap, [bAddHeader=true]) async
   {
     var basicUrl = ip + ":" + port.toString();
-    var url = "http://" + basicUrl + relativeUrl;
-    var uri = new Uri.http(basicUrl, "");
+    var uri;
     if (port == 443) {
-      url = "https://" + basicUrl + relativeUrl;
-      uri = new Uri.https(basicUrl, "");
+      basicUrl = ip;
+    } 
+    bool bHttps = basicUrl.startsWith(new RegExp(r'^https://'));
+    bool bHttp = basicUrl.startsWith(new RegExp(r'^http://'));
+    String basicUrl1 = basicUrl;
+    if (bHttps) {
+      basicUrl1 = basicUrl.substring(8);
+    } else if (bHttp) {
+      basicUrl1 = basicUrl.substring(7);
+    }
+    if (basicUrl.endsWith('/')) {
+      basicUrl = basicUrl.substring(0, basicUrl.length - 1);
+      basicUrl1 = basicUrl1.substring(0, basicUrl1.length - 1);
+    }
+    var url = basicUrl + relativeUrl;
+
+    if (port == 443) {
+      uri = new Uri.https(basicUrl1, "");
+      if (!bHttps) {
+        url = "https://" + url;
+      }
+    } else {
+      uri = new Uri.http(basicUrl1, "");
+      if (!bHttp) {
+        url = "http://" + url;
+      }
+    }
+    if (!url.endsWith('/')) {
+      url = url + '/';
     }
 
-   
     var response;
     try {
         if (bAddHeader) {
@@ -355,7 +380,7 @@ class Services {
                 
                 
                 headers["Cookie"] = sCookie;
-
+            
                 response = await http.post(url, body : bodyMap, headers: headers);
             } else {
                 response = await http.post(url, body : bodyMap);

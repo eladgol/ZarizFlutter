@@ -99,6 +99,7 @@ class CarosuelState {
   void setPage(int page) {
     try {
       _controller.animateToPage(page, duration: _kDuration, curve: _kCurve);
+      _pv.controller.jumpToPage(page);
     } catch (e) {}
   }
 
@@ -108,6 +109,9 @@ class CarosuelState {
       print("JobsPageCarouselValue $currentPageValue");
     });
     _pv = new PageView.builder(
+        onPageChanged: ((i) {
+           WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
+        }),
         physics: (pages.length == 1)
             ? new NeverScrollableScrollPhysics()
             : new AlwaysScrollableScrollPhysics(),

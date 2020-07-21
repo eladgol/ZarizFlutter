@@ -15,7 +15,6 @@ class JobConfirmPage extends StatefulWidget {
 }
 class _JobConfirmPageState extends State<JobConfirmPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
-  bool _bUpdating = false;
   String sTitle = "";
   String jobID = "";
   Services _services = new Services();
@@ -60,8 +59,8 @@ class _JobConfirmPageState extends State<JobConfirmPage> {
                       fit: BoxFit.scaleDown,
                       image: new AssetImage('assets/img/login_logo.jpg')),
                 ),
-                (_bUpdating) ? new CircularProgressIndicator(backgroundColor: Theme.Colors.zarizGradientStart):new Container(),
-                  createTextField("הצעת עבודה",  null, null, null, textSize: 32.0, bCenter:true),
+                new Container(),
+                  createTextField("הודעה חדשה",  null, null, null, textSize: 32.0, bCenter:true),
                   createTextField(sTitle, null, null, null, bCenter:true, maxLines: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -100,5 +99,12 @@ class _JobConfirmPageState extends State<JobConfirmPage> {
         ),
       )
     );
+  }
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
+    });
   }
 }

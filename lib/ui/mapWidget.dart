@@ -6,6 +6,7 @@ import 'package:zariz_app/ui/profile_page.dart';
 
 Widget buildMapWidgetJobsForWorker(List<JobDetailsForWorker> lJobs, WorkerDetails lWorkers, CurrentLocation currentLocation, Function(String) onTapInfoWindow)
 {
+  //WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
   Set<Marker> markers = <Marker>{};
   for (JobDetailsForWorker job in lJobs) {
       String title = "${job.jd.discription}";

@@ -420,13 +420,20 @@ class _LoginPageState extends State<LoginPage>
          print("Google, logged in for $email");
       
         _services.authenticateGoogle({"token" : idToken, "id" : id}).then((res) {
+          Singleton().persistentState.setString("user", email);
+          Singleton().persistentState.setString("password", "");
             handleLoginResult(res, res["email"]);
           });
           onLoginStatusChanged(true);
         });
       
     });
-    _googleSignIn.signInSilently();
+    try {
+      _googleSignIn.signInSilently();
+    } catch (error) {
+       print("googleSignIn, error {$error}");
+    }
+    
     //IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
     //print('Running on ${iosInfo.utsname.machine}');  // e.g. "iPod7,1
   }
@@ -621,9 +628,9 @@ class _LoginPageState extends State<LoginPage>
                         stops: [0.0, 1.0],
                         tileMode: TileMode.clamp),
                   ),
-                  child: MaterialButton(
-                    highlightColor: Colors.transparent,
-                    splashColor: Theme.Colors.zarizGradientEnd,
+                  child: FlatButton(
+                    highlightColor: Theme.Colors.zarizGradientEnd,
+                    splashColor: Theme.Colors.zarizGradientStart1,
                     //shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(5.0))),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -1029,7 +1036,10 @@ class _LoginPageState extends State<LoginPage>
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => ProfilePage()),
-        );
+        ).then((result) {
+          if (result!=null)
+            showInSnackBar(result);
+        });
       } else if (res["error"].contains("Authent")) {
         showInSnackBar("שם משתמש או סיסמא אינם רשומים במערכת");
       } else {
@@ -1090,7 +1100,6 @@ class _LoginPageState extends State<LoginPage>
   GoogleSignIn _googleSignIn = GoogleSignIn(
       scopes: <String>[
         'email',
-        'https://www.googleapis.com/auth/contacts.readonly',
       ],
   );
 
