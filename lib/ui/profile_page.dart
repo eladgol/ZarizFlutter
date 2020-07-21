@@ -1529,7 +1529,7 @@ class _ProfilePageState extends State<ProfilePage>
             //                 : Colors.grey),
             //     disabledColor: Colors.grey,
             //     tooltip: _bJobMenu ? "עריכת פרטים" : "הצגת עבודות",
-            //     onPressed: () {
+            //     onPressed: () {  
             //       bDetailsAreFull
             //           ? _select(choices[1])
             //           : showInSnackBar("הפרטים לא מלאים");
@@ -2291,8 +2291,8 @@ class _ProfilePageState extends State<ProfilePage>
           ? Text(
               'עדכן פרטים',
               textScaleFactor: 1.5,
-            )
-          : Text('עדכן פרטים',),
+              style: TextStyle(color: Colors.white))
+          : Text('עדכן פרטים', style: TextStyle(color: Colors.white)),
     ]);
     //return Container();
   }
@@ -2310,7 +2310,7 @@ class _ProfilePageState extends State<ProfilePage>
                                       //       borderRadius:
                                       //           BorderRadius.circular(4.0),
                                       //     ),
-                                          child: RawMaterialButton(
+                                          child: Column( children: [RawMaterialButton(
                                             // constraints:  BoxConstraints.loose(Size(_widthSwitch, _heightSwitch)),
             // : BoxConstraints.loose(Size(88.0, 36.0)),
       fillColor: Colors.blue[300],
@@ -2336,7 +2336,9 @@ class _ProfilePageState extends State<ProfilePage>
             _bMapView = !_bMapView;
           });}),
           shape: CircleBorder()
-    )));
+    ),
+    _bMapView ? Text('רשימת עבודות', style: TextStyle(color: Colors.white)) : Text('תצוגת מפה', style: TextStyle(color: Colors.white)),
+    ])));
     //return Container();
   }
   Widget addJobWidgetActionButton() {
@@ -2399,7 +2401,7 @@ class _ProfilePageState extends State<ProfilePage>
                 ),
                 Text(bShrink
                     ? 'עריכת עבודה'
-                    : 'הצג עובדים'),
+                    : 'הצג עובדים', style: TextStyle(color: Colors.white)),
               ]);
   }
   Widget addJobWidgetWorkersActionButton() {
@@ -2471,8 +2473,8 @@ class _ProfilePageState extends State<ProfilePage>
           ? Text(
               'הוסף עבודה',
               textScaleFactor: 1.5,
-            )
-          : Text('הוסף עבודה'),
+              style: TextStyle(color: Colors.white))
+          : Text('הוסף עבודה', style: TextStyle(color: Colors.white)),
     ]);
   }
   Widget jobBossPage(BuildContext context, int index) {
