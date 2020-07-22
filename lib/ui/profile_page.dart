@@ -412,17 +412,18 @@ class _ProfilePageState extends State<ProfilePage>
   PageController _pageController;
   List<Widget> _pages;
   GoogleMapsPlaces _placesAPI = new GoogleMapsPlaces(apiKey: kGoogleApiKey);
-  String _profileTitleBoss = "פרופיל מעסיק";
-  String _profileTitleBossJobs = "עבודות מעסיק";
-  String _profileTitleWorker = "פרופיל עובד";
-  String _profileTitleWorkerJobs = "עבודות עובד";
+  final String _titleBossProfile = "פרופיל מעסיק";
+  final String _titleBossJobsWorkersList = "עבודות מעסיק - רשימת עובדים";
+  final String _titleBossJobsWorkDetails = "עבודות מעסיק - עריכת פרטי עבודה";
+  final String _titleWorkerJobsMapView = "עבודות מעסיק - תצוגת מפה";
+  final String _titleWorkerProfile = "פרופיל עובד";
+  final String _titleWorkerJobsList = "עבודות עובד - רשימת עבודות";
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
   List<bool> _selectedOccupation =
       new List<bool>.filled(_lDefaultPossibleOccupation.length, false);
   Services _services = new Services();
 
-  Animation _switchAnim;
   AnimationController _switchAnimController;
 
   Animation<double> _switchAnimCurve;
@@ -1481,6 +1482,111 @@ class _ProfilePageState extends State<ProfilePage>
     //   ),
     // );
   }
+    OverlayEntry _createOverlayEntry() {
+
+    RenderBox renderBox = context.findRenderObject();
+    var size = renderBox.size;
+    var offset = renderBox.localToGlobal(Offset.zero);
+
+    return OverlayEntry(
+      builder: (context) => Positioned(
+        left: offset.dx,
+        top: offset.dy + size.height + 5.0,
+        width: size.width,
+        child: Material(
+          elevation: 4.0,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            children: <Widget>[
+              ListTile(
+                title: Text('Syria'),
+              ),
+              ListTile(
+                title: Text('Lebanon'),
+              )
+            ],
+          ),
+        ),
+      )
+    );
+  }
+  Future<bool>  jobStatusPopUpMenu(String sName, bool bAuthorized, bool bResponded, bool bHired, bool bAsWorker )  {
+    String sTitle = "אתה בטוח שאתה רוצה לפטר את $sName?";
+    if (!bAsWorker) {
+      if (!bHired) {
+        if (bResponded) {
+          sTitle = "אתה בטוח שאתה רוצה להעסיק את $sName?";
+        }
+      }
+    } else {
+      if (bHired) {
+        sTitle = "אתה בטוח שאתה רוצה להתפטר מ $sName?";
+      } else if (!bResponded) {
+        sTitle = "אתה בטוח שאתה מעניין ב $sName?";
+      } else {
+        sTitle = "אתה בטוח שאתה לא מעוניין ב $sName?";
+      }
+    }
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+    //      return Dialog()
+      return Dialog(
+    // context: context,Dialog(
+  backgroundColor: Colors.transparent,
+  insetPadding: EdgeInsets.all(10),
+  child: Stack(
+    overflow: Overflow.visible,
+    alignment: Alignment.center,
+    children: <Widget>[
+      Container(
+        width: double.infinity,
+        height: 5 * _heightSwitch,
+        decoration: BoxDecoration(borderRadius: new BorderRadius.all(
+                 const Radius.circular(40.0),
+               
+              ), gradient: new LinearGradient(colors:   [
+                      ZarizTheme.Colors.zarizGradientStart2,
+                      ZarizTheme.Colors.zarizGradientEnd
+                    ],)),
+        padding: EdgeInsets.fromLTRB(20, 75, 20, 5),
+        child: Directionality(textDirection: TextDirection.rtl, child: Column(children: [
+                        createTitle(sTitle, textSize: 18.0, color: Colors.black),
+                        Center(child: Row(crossAxisAlignment: CrossAxisAlignment.start,mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                        FlatButton(child: createTitle("כן"), color:Colors.green, onPressed: () => Navigator.of(context).pop(true)),
+                        FlatButton(child: createTitle("לא"), color:Colors.red,onPressed: () => Navigator.of(context).pop(false)),
+                        ])),
+                      ],)),
+        ),
+    
+      Positioned(
+        top: -50,
+        child: Card(shape: CircleBorder(), child: Icon(FontAwesomeIcons.question, color: Colors.red[300], size: 100), color: Colors.brown, elevation: 2.0)
+
+      )
+    ],
+  )
+);}
+    );
+    // return showDialog<bool>(
+    // context: context,
+    // builder: (BuildContext context) {
+    //      return AlertDialog(
+    //        shape: CircleBorder(),
+    //        titleTextStyle: TextStyle(),
+    //        backgroundColor: Colors.brown.withOpacity(1.0),
+    //        elevation: 2.0,
+    //         title: Center(child: Text("פיטורים", style: TextStyle(color: Colors.white54),)),
+    //         content: Text("?אתה בטוח שאתה רוצה לפטר את $sName"),
+    //         actionsPadding: EdgeInsets.fromLTRB(20, 50, 20, 20),
+    //         actions: <Widget>[
+    //             FlatButton(child: createTitle("כן"), onPressed: () => Navigator.of(context).pop(true)),
+    //             FlatButton(child: createTitle("לא"), onPressed: () =>  Navigator.of(context).pop(false))
+    //         ],
+    //       );
+    //     });
+  }
   bool areDetailsFull() {
     return (_bBossMode && _bBossDetailsAreFull) ||
         (!_bBossMode && _bWorkerDetailsAreFull);
@@ -1495,8 +1601,8 @@ class _ProfilePageState extends State<ProfilePage>
         appBar: AppBar(
           title: FittedBox(
             child: Text(_bBossMode
-                ? (_bJobMenu ? _profileTitleBossJobs : _profileTitleBoss)
-                : (_bJobMenu ? _profileTitleWorkerJobs : _profileTitleWorker)),
+                ? (_bJobMenu ? (_bShrinkJobMenu ? _titleBossJobsWorkersList : _titleBossJobsWorkDetails) : _titleBossProfile) :  
+                (_bJobMenu ? (_bMapView ?  _titleWorkerJobsMapView : _titleWorkerJobsList) : _titleWorkerProfile)),
             fit: BoxFit.scaleDown,
           ),
           actions: <Widget>[
@@ -2861,7 +2967,7 @@ class _ProfilePageState extends State<ProfilePage>
           borderRadius: BorderRadius.circular(8.0),
         ),
         child: new Container(
-            child: new Row(children: <Widget>[
+            child: new Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: <Widget>[
           RawMaterialButton(
             fillColor: item.bHired
                 ? Color.fromRGBO(212, 175, 55, 1)
@@ -2870,50 +2976,62 @@ class _ProfilePageState extends State<ProfilePage>
                     : (item.bResponded ? Colors.red : Colors.grey)),
             splashColor: Colors.white,
             child: new Container(
+              width: _widthSwitch / 4,
               decoration: new BoxDecoration(
-                shape: BoxShape.circle,
+                shape: BoxShape.rectangle,
                 color: item.bHired
                     ? Color.fromRGBO(212, 175, 55, 1)
                     : (item.bAuthorized
                         ? Colors.green
                         : (item.bResponded ? Colors.red : Colors.grey)),
               ),
-              child: item.bHired
+              child: new Column (children: [ item.bHired
                   ? new Icon(FontAwesomeIcons.handshake)
                   : item.bAuthorized
                       ? new Icon(FontAwesomeIcons.check)
                       : (item.bResponded
                           ? Icon(FontAwesomeIcons.exclamation)
                           : Icon(FontAwesomeIcons.question)),
-            ),
-            onPressed: (() {
-              if (!item.bAuthorized) {
-                _services.confirmJob(item.jd._jobId, true).then((res) {
-                  if (res.containsKey("success") &&
-                      ((res["success"] == "true") ||
-                          (res["success"] == true))) {
-                    var res2 = refreshJobs();
-                    res2.then((bSuccess) {
-                      if (bSuccess) {
-                        setState(() {});
-                      }
-                    });
-                  }
-                });
-              } else {
-                _services.confirmJob(item.jd._jobId, false).then((res) {
-                  if (res.containsKey("success") &&
-                      ((res["success"] == "true") ||
-                          (res["success"] == true))) {
-                    var res2 = refreshJobs();
-                    res2.then((bSuccess) {
-                      if (bSuccess) {
-                        setState(() {});
-                      }
-                    });
-                  }
-                });
-              }
+                    item.bHired ? createTitle("נסגר") : 
+                    item.bAuthorized
+                      ? createTitle("מעוניין")
+                      : (item.bResponded
+                          ? createTitle("לא")
+                          : createTitle("לא הגיב", textSize: 15.0)),
+              ])),
+            onPressed: (()  {
+              jobStatusPopUpMenu(item.jd._discription, item.bAuthorized, item.bResponded, item.bHired, true).then((bYes)
+              {
+                if (bYes) {
+                if (!item.bAuthorized) {
+                  _services.confirmJob(item.jd._jobId, true).then((res) {
+                    if (res.containsKey("success") &&
+                        ((res["success"] == "true") ||
+                            (res["success"] == true))) {
+                      var res2 = refreshJobs();
+                      res2.then((bSuccess) {
+                        if (bSuccess) {
+                          setState(() {});
+                        }
+                      });
+                    }
+                  });
+                } else {
+                  _services.confirmJob(item.jd._jobId, false).then((res) {
+                    if (res.containsKey("success") &&
+                        ((res["success"] == "true") ||
+                            (res["success"] == true))) {
+                      var res2 = refreshJobs();
+                      res2.then((bSuccess) {
+                        if (bSuccess) {
+                          setState(() {});
+                        }
+                      });
+                    }
+                  });
+                }
+               }
+             });
             }),
             shape: new CircleBorder(),
           ),
@@ -3437,8 +3555,11 @@ class _ProfilePageState extends State<ProfilePage>
                         borderRadius: BorderRadius.circular(8.0),
                       ),
                       child: new Container(
-                          child: new Row(children: <Widget>[
-                        RawMaterialButton(
+                          child: new Row( mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        createTitle(
+                            '${lWorkersToShow[index]._firstName} ${lWorkersToShow[index]._lastName}'),
+                         RawMaterialButton(
                           fillColor: bHired
                               ? Color.fromRGBO(212, 175, 55, 1)
                               : (bAuthorized
@@ -3446,25 +3567,34 @@ class _ProfilePageState extends State<ProfilePage>
                                   : (bResponded ? Colors.red : Colors.grey)),
                           splashColor: Colors.white,
                           child: new Container(
-                            decoration: new BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: bHired
-                                  ? Color.fromRGBO(212, 175, 55, 1)
-                                  : (bAuthorized
-                                      ? Colors.green
-                                      : (bResponded
-                                          ? Colors.red
-                                          : Colors.grey)),
-                            ),
-                            child: bHired
-                                ? new Icon(FontAwesomeIcons.handshake)
-                                : bAuthorized
-                                    ? new Icon(FontAwesomeIcons.check)
-                                    : (bResponded
-                                        ? Icon(FontAwesomeIcons.exclamation)
-                                        : Icon(FontAwesomeIcons.question)),
-                          ),
+                width: _widthSwitch / 4,
+                decoration: new BoxDecoration(
+                  shape: BoxShape.rectangle,
+                  color: bHired
+                      ? Color.fromRGBO(212, 175, 55, 1)
+                      : (bAuthorized
+                          ? Colors.green
+                          : (bResponded ? Colors.red : Colors.grey)),
+                ),
+                child: new Column (children: [ bHired
+                    ? new Icon(FontAwesomeIcons.handshake)
+                    : bAuthorized
+                        ? new Icon(FontAwesomeIcons.check)
+                        : (bResponded
+                            ? Icon(FontAwesomeIcons.exclamation)
+                            : Icon(FontAwesomeIcons.question)),
+                      bHired ? createTitle("נסגר") : 
+                      bAuthorized
+                        ? createTitle("מעוניין")
+                        : (bResponded
+                            ? createTitle("לא")
+                            : createTitle("לא הגיב", textSize: 15.0)),
+                  ])
+                ),
                           onPressed: (() {
+                            jobStatusPopUpMenu('${lWorkersToShow[index]._firstName} ${lWorkersToShow[index]._lastName}', bAuthorized, bResponded, bHired, false).then((bYes)
+              {if (!bYes)
+                  return;
                             if (!bAuthorized) {
                               // re-send notification
 
@@ -3485,11 +3615,10 @@ class _ProfilePageState extends State<ProfilePage>
                                 }
                               });
                             }
-                          }),
+                          });}),
                           shape: new CircleBorder(),
                         ),
-                        createTitle(
-                            '${lWorkersToShow[index]._firstName} ${lWorkersToShow[index]._lastName}'),
+                        
                       ])));
                 })),
       ]),

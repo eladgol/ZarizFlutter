@@ -58,7 +58,7 @@ Widget createTextField(String hintText, FocusNode focusNode, TextEditingControll
             color: Colors.black),))]));
       
   }
-Widget createTitle(String sTitle, {IconData icon, textSize=16.0, bCenter =false, bLeft = false})
+Widget createTitle(String sTitle, {IconData icon, textSize=16.0, bCenter =false, bLeft = false, color = null})
 {
   return new Padding(
       padding: bCenter? EdgeInsets.only(top:1.0, bottom:1.0) :
@@ -67,9 +67,10 @@ Widget createTitle(String sTitle, {IconData icon, textSize=16.0, bCenter =false,
         style: TextStyle(
           fontFamily: "WorkSansSemiBold",
           fontSize: textSize,
-          color: Colors.black),
+          color: color == null ? Colors.black : color),
         textAlign: bCenter?TextAlign.center:bLeft?TextAlign.end:TextAlign.start,
         textDirection: TextDirection.rtl,
+        softWrap: false,
       )
     );
 }
@@ -79,6 +80,7 @@ Widget createTitleNoPadding(String sTitle, {IconData icon, textSize=16.0, bCente
       padding: bCenter? EdgeInsets.only(top:0.0, bottom:0.0) :
         EdgeInsets.only(top: 0.0, bottom: 0.0, left: 0.0, right: 0.0),
       child: Text(sTitle,
+      softWrap: true,
         //key: (key != null) ? key : GlobalKey(),
         style: TextStyle(
           fontFamily: "WorkSansSemiBold",
