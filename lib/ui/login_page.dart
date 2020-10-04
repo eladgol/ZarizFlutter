@@ -408,10 +408,14 @@ class _LoginPageState extends State<LoginPage>
     _googleSignIn.onCurrentUserChanged.listen((GoogleSignInAccount account) {
       setState(() {
         _googleAccount = account;
-      });
+      }); 
+      if (account == null) {
+         print("_googleSignIn.onCurrentUserChanged, received null as account");
+         return;
+      }
       String email = account.email;
       String id = account.id;
-        
+      
       account.authentication.then((value) { 
         var serverAuthCode= value.serverAuthCode;
         var accessToken = value.accessToken;

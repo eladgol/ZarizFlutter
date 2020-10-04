@@ -159,17 +159,20 @@ class JobsDetails {
 
 }
 
-class JobDetailsForWorkerUI {
+
+
+class DetailsUIArrowSwitch {
   double _angle = 0;
   AnimationController _angleController;
   bool bIsExpanded = false;
-  JobDetailsForWorkerUI(_ProfilePageState t) {
+  DetailsUIArrowSwitch(_ProfilePageState t) {
     _angleController =
         AnimationController(vsync: t, duration: Duration(milliseconds: 500));
     _angleController.addListener(() {
       t.setState(() {
         _angle = _angleController.value * 180 / 360 * 2 * pi;
       });
+        
     });
   }
 }
@@ -180,9 +183,9 @@ class JobDetailsForWorker {
   bool bAuthorized = false;
   bool bResponded = false;
   bool bHired = false;
-  JobDetailsForWorkerUI ui;
+  DetailsUIArrowSwitch ui;
   JobDetailsForWorker(_ProfilePageState t) {
-    ui = new JobDetailsForWorkerUI(t);
+    ui = new DetailsUIArrowSwitch(t);
   }
 }
 
@@ -3041,7 +3044,7 @@ class _ProfilePageState extends State<ProfilePage>
               child: Transform.rotate(
                   angle: item.ui._angle,
                   child: new Icon(
-                    Icons.arrow_downward,
+                    Icons.arrow_upward,
                     size: 24.0,
                   ))),
         ])));
@@ -3505,7 +3508,8 @@ class _ProfilePageState extends State<ProfilePage>
 
     var _w = MediaQuery.of(context).size.width;
     var _h = MediaQuery.of(context).size.height;
-
+    DetailsUIArrowSwitch detailArrowSwitch = new DetailsUIArrowSwitch(this);
+    
     Widget sortText = createTitleNoPadding(_sSortTypes[_sortTypeWorkersForJob],
         textSize: 10.0, bCenter: true, color:  ZarizTheme.Colors.zarizGradientStart2);
 
@@ -3517,7 +3521,7 @@ class _ProfilePageState extends State<ProfilePage>
             child: new ListView.builder(
                 shrinkWrap: true,
                 padding: EdgeInsets.only(
-                    top: 0.0, bottom: 20.0, right: 25.0, left: 25.0),
+                    top: 0.0, bottom: 0.0, right: 0.0, left: 0.0),
                 itemCount: lWorkersToShow.length,
                 itemBuilder: (BuildContext context, int index) {
                   bool bNotified = false;
@@ -3557,8 +3561,7 @@ class _ProfilePageState extends State<ProfilePage>
                       child: new Container(
                           child: new Row( mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: <Widget>[
-                        createTitle(
-                            '${lWorkersToShow[index]._firstName} ${lWorkersToShow[index]._lastName}'),
+                        
                          RawMaterialButton(
                           fillColor: bHired
                               ? Color.fromRGBO(212, 175, 55, 1)
@@ -3618,7 +3621,16 @@ class _ProfilePageState extends State<ProfilePage>
                           });}),
                           shape: new CircleBorder(),
                         ),
-                        
+                        createTitle(
+                            '${lWorkersToShow[index]._firstName} ${lWorkersToShow[index]._lastName}'),
+                       new Align(
+              alignment: Alignment.centerRight,
+              child: Transform.rotate(
+                  angle: detailArrowSwitch._angle,
+                  child: new Icon(
+                    Icons.arrow_upward,
+                    size: 24.0,
+                  ))), 
                       ])));
                 })),
       ]),
