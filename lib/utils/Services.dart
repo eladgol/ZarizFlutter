@@ -7,8 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 
 
-const sDefaultIP =  "192.168.1.13"; //"192.168.43.14";//// "https://zariz-204206.appspot.com/";
-const sDefaultPORT = 8080;//443;
+const sDefaultIP =   "https://zariz-204206.appspot.com/";//"https://192.168.1.13"; //"192.168.43.14";//// "https://zariz-204206.appspot.com/";
+const sDefaultPORT = 443;//8080;//443;
 
 typedef Future<bool> HttpAuthenticationCallback(
       Uri uri, String scheme, String realm);
@@ -429,7 +429,7 @@ class Services {
             jResponse["success"] = true;
         }
     }
-    print(jResponse.toString());
+    print("postServer, url - $url, response - ${jResponse.toString()}");
     return jResponse;
   }
   Future<Map<String,dynamic> > authenticateFacebook(Map<String,dynamic> token) async {

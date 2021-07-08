@@ -5,7 +5,7 @@ import 'dart:core';
 
 Widget createTextField(String hintText, FocusNode focusNode, TextEditingController controller, IconData iconData,
  {direction=null, keyboardType=TextInputType.text, maxLines = 1, validator=null, textSize=16.0, bCenter =false, 
- onTapFunction=null, enableEdit=true, dropDownButton = null}) {
+ onTapFunction=null, enableEdit=true, dropDownButton = null, onEditingComplete=null, onEditingCompleteIndex = 0}) {
     return new Padding(
       padding: bCenter? EdgeInsets.only(top:10.0, bottom:10.0) :
         EdgeInsets.only(top: 10.0, bottom: 10.0, left: 25.0, right: 25.0),
@@ -36,7 +36,9 @@ Widget createTextField(String hintText, FocusNode focusNode, TextEditingControll
           hintStyle: TextStyle(
               fontFamily: "WorkSansSemiBold", fontSize: textSize),
           labelText: (controller?.text ?? "") == "" ?  null : hintText,
+          
         ),
+        onEditingComplete : onEditingComplete!= null ? onEditingComplete(onEditingCompleteIndex) : () => {},
       ),
     );
   }
@@ -58,7 +60,7 @@ Widget createTextField(String hintText, FocusNode focusNode, TextEditingControll
             color: Colors.black),))]));
       
   }
-Widget createTitle(String sTitle, {IconData icon, textSize=16.0, bCenter =false, bLeft = false, color = null})
+Widget createTitle(String sTitle, {IconData icon, textSize=16.0, bCenter =false, bLeft = false, color = null, bWrap = false})
 {
   return new Padding(
       padding: bCenter? EdgeInsets.only(top:1.0, bottom:1.0) :
@@ -70,7 +72,7 @@ Widget createTitle(String sTitle, {IconData icon, textSize=16.0, bCenter =false,
           color: color == null ? Colors.black : color),
         textAlign: bCenter?TextAlign.center:bLeft?TextAlign.end:TextAlign.start,
         textDirection: TextDirection.rtl,
-        softWrap: false,
+        softWrap: bWrap,
       )
     );
 }

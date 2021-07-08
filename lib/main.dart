@@ -1,8 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:zariz_app/ui/login_page.dart';
 //import 'package:flutter/rendering.dart'; 
+ class MyHttpOverrides extends HttpOverrides{
+  @override
+  HttpClient createHttpClient(SecurityContext context){
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port)=> true;
+  }
+}
 void main()
 {
+  HttpOverrides.global = new MyHttpOverrides();
   //debugPaintSizeEnabled=true;
   runApp(new MyApp());
   WidgetsBinding.instance

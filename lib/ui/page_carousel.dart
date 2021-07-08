@@ -103,14 +103,14 @@ class CarosuelState {
     } catch (e) {}
   }
 
-  Widget buildCarousel(BuildContext context, double _height) {
+  Widget buildCarousel(BuildContext context, double _height, Function(int) pageChangedCallback) {
     _controller.addListener(() {
       currentPageValue = _controller.page;
       print("JobsPageCarouselValue $currentPageValue");
     });
     _pv = new PageView.builder(
         onPageChanged: ((i) {
-           WidgetsBinding.instance.focusManager.primaryFocus?.unfocus();
+           pageChangedCallback(i);
         }),
         physics: (pages.length == 1)
             ? new NeverScrollableScrollPhysics()
